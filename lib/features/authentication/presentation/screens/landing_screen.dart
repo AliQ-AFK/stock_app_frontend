@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'sign_in.dart';
+import 'sign_up1.dart';
 
 /// Landing screen for the AlphaWave trading application
 ///
@@ -48,7 +50,10 @@ class _LandingScreenState extends State<LandingScreen> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
-                        // TODO: Navigate to sign in screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => SignInScreen()),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isLightMode
@@ -65,7 +70,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       child: Text(
                         'Sign in',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 22,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -87,7 +92,10 @@ class _LandingScreenState extends State<LandingScreen> {
                       ),
                       TextButton(
                         onPressed: () {
-                          // TODO: Navigate to sign up screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => SignUp1()),
+                          );
                         },
                         child: Text(
                           'Sign up',
