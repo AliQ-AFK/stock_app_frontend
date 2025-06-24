@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'core/constants/app_colors.dart';
+import 'core/providers/theme_provider.dart';
 import 'core/services/portfolio_manager_service.dart';
 import 'core/services/watchlist_service.dart';
 import 'features/authentication/presentation/screens/landing_screen.dart';
@@ -7,7 +11,12 @@ import 'features/authentication/presentation/screens/landing_screen.dart';
 void main() {
   // Initialize all demo data
   initializeApp();
-  runApp(AlphaWaveApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ThemeProvider(),
+      child: AlphaWaveApp(),
+    ),
+  );
 }
 
 /// Initializes the application with demo data
@@ -27,20 +36,74 @@ void initializeApp() {
 class AlphaWaveApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AlphaWave Trading',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: LandingScreen(),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        // Update system UI overlay style based on current theme
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            // Status bar
+            statusBarColor: AppColors.getBG(themeProvider.brightness),
+            statusBarIconBrightness: themeProvider.isLightMode
+                ? Brightness.dark
+                : Brightness.light,
+            statusBarBrightness: themeProvider.isLightMode
+                ? Brightness.light
+                : Brightness.dark,
+
+            // Navigation bar
+            systemNavigationBarColor: AppColors.getBG(themeProvider.brightness),
+            systemNavigationBarIconBrightness: themeProvider.isLightMode
+                ? Brightness.dark
+                : Brightness.light,
+            systemNavigationBarDividerColor: AppColors.getBG(
+              themeProvider.brightness,
+            ),
+          ),
+        );
+
+        return MaterialApp(
+          title: 'AlphaWave Trading',
+          debugShowCheckedModeBanner: false,
+          themeMode: themeProvider.themeMode,
+          theme: ThemeData(
+            brightness: Brightness.light,
+            primarySwatch: Colors.blue,
+            visualDensity: VisualDensity.adaptivePlatformDensity,
+            scaffoldBackgroundColor: AppColors.lightBG,
+            appBarTheme: AppBarTheme(
+              backgroundColor: AppColors.lightBG,
+              foregroundColor: AppColors.lightText,
+              elevation: 0,
+              systemOverlayStyle: SystemUiOverlayStyle(
+                statusBarColor: AppColors.lightBG,
+                statusBarIconBrightness: Brightness.dark,
+                statusBarBrightness: Brightness.light,
+                systemNavigationBarColor: AppColors.lightBG,
+                systemNavigationBarIconBrightness: Brightness.dark,
+              ),
+            ),
+          ),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            primarySwatch: Colors.blue,
+            visualDensity: VisualDensity.adaptivePlatformDensity,
+            scaffoldBackgroundColor: AppColors.darkBG,
+            appBarTheme: AppBarTheme(
+              backgroundColor: AppColors.darkBG,
+              foregroundColor: AppColors.darkText,
+              elevation: 0,
+              systemOverlayStyle: SystemUiOverlayStyle(
+                statusBarColor: AppColors.darkBG,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
+                systemNavigationBarColor: AppColors.darkBG,
+                systemNavigationBarIconBrightness: Brightness.light,
+              ),
+            ),
+          ),
+          home: LandingScreen(),
+        );
+      },
     );
   }
 }

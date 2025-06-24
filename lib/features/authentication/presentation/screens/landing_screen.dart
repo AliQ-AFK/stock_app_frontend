@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 import 'sign_in.dart';
 import 'sign_up1.dart';
 
@@ -14,8 +16,8 @@ class LandingScreen extends StatefulWidget {
 class _LandingScreenState extends State<LandingScreen> {
   @override
   Widget build(BuildContext context) {
-    // Check current theme brightness for asset selection
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
     final isLightMode = brightness == Brightness.light;
 
     return Scaffold(
@@ -52,7 +54,9 @@ class _LandingScreenState extends State<LandingScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => SignInScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => SignInScreen(),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(

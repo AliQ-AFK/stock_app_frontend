@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/models/user.dart';
 import 'package:stock_app_frontend/core/models/portfolio.dart';
 import 'package:stock_app_frontend/core/models/stock.dart';
 import 'package:stock_app_frontend/core/models/news_article.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 import 'package:stock_app_frontend/core/services/portfolio_manager_service.dart';
 import 'package:stock_app_frontend/core/services/stock_data_service.dart';
 import 'package:stock_app_frontend/core/services/news_service.dart';
 import 'package:stock_app_frontend/core/services/watchlist_service.dart';
+import 'package:stock_app_frontend/features/stocks/presentation/screens/my_stocks_screen.dart';
+import 'package:stock_app_frontend/features/watchlist/presentation/screens/watchlist_screen.dart';
 import '../widgets/portfolio_value_card.dart';
 import '../widgets/stock_card.dart';
 import '../widgets/news_card.dart';
@@ -110,7 +114,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
 
     return Scaffold(
       backgroundColor: AppColors.getBG(brightness),
@@ -140,7 +145,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       SectionHeader(
                         title: 'My Stocks',
                         onViewAllPressed: () {
-                          // TODO: Navigate to full stocks view
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MyStocksScreen(),
+                            ),
+                          );
                         },
                       ),
                       const SizedBox(height: 16),
@@ -164,7 +174,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       SectionHeader(
                         title: 'My Watchlist',
                         onViewAllPressed: () {
-                          // TODO: Navigate to watchlist screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => WatchlistScreen(),
+                            ),
+                          );
                         },
                       ),
                       const SizedBox(height: 16),
@@ -193,6 +208,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Builds horizontal scrollable list of stock cards
   Widget _buildHorizontalStocksList(List<Stock> stocks) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
+
     if (stocks.isEmpty) {
       return Container(
         height: 120,
@@ -200,9 +218,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Text(
             'No stocks available',
             style: TextStyle(
-              color: AppColors.getText(
-                MediaQuery.of(context).platformBrightness,
-              ).withOpacity(0.6),
+              color: AppColors.getText(brightness).withOpacity(0.6),
               fontSize: 16,
             ),
           ),
@@ -211,7 +227,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     return SizedBox(
-      height: 120,
+      height: 100,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: stocks.length,
@@ -232,6 +248,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Builds the news section with vertical list of news cards
   Widget _buildNewsSection() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
+
     if (_latestNews.isEmpty) {
       return Container(
         height: 120,
@@ -239,9 +258,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Text(
             'No news available',
             style: TextStyle(
-              color: AppColors.getText(
-                MediaQuery.of(context).platformBrightness,
-              ).withOpacity(0.6),
+              color: AppColors.getText(brightness).withOpacity(0.6),
               fontSize: 16,
             ),
           ),

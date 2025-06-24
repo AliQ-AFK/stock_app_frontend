@@ -20,12 +20,16 @@ class WatchlistService {
     );
 
     // Add some stocks to watchlist (we'll update stock references later)
-    StockDataService.getStockByID("2").then((stock) {
-      if (stock != null) watchlist1.addStock("2", stock); // GOOGL
+    StockDataService.getStockByID("4").then((stock) {
+      if (stock != null) watchlist1.addStock("4", stock); // AMD
     });
 
     StockDataService.getStockByID("5").then((stock) {
-      if (stock != null) watchlist1.addStock("5", stock); // TSLA
+      if (stock != null) watchlist1.addStock("5", stock); // META
+    });
+
+    StockDataService.getStockByID("6").then((stock) {
+      if (stock != null) watchlist1.addStock("6", stock); // GOOGL
     });
 
     _watchlists["1"] = watchlist1;

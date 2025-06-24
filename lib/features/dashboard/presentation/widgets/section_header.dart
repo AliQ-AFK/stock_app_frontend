@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 
 /// Section header widget
 ///
@@ -28,7 +30,8 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/models/portfolio.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 
 /// Portfolio value card widget
 ///
@@ -15,7 +17,8 @@ class PortfolioValueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
     final isLightMode = brightness == Brightness.light;
 
     final totalValue = portfolio.totalValue;
@@ -27,7 +30,7 @@ class PortfolioValueCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isLightMode ? Colors.grey[400] : Colors.grey[600],
+        color: isLightMode ? Colors.grey[400] : Colors.grey[700],
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -37,25 +40,25 @@ class PortfolioValueCard extends StatelessWidget {
           Text(
             'Portfolio Value',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: isLightMode ? Colors.black87 : Colors.white70,
+              color: isLightMode ? Colors.black87 : Colors.white,
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           // Portfolio total value
           Text(
             '\$${totalValue.toStringAsFixed(2)}',
             style: TextStyle(
-              fontSize: 36,
+              fontSize: 32,
               fontWeight: FontWeight.w700,
               color: isLightMode ? Colors.black : Colors.white,
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Gain/Loss information
           Row(
@@ -63,12 +66,12 @@ class PortfolioValueCard extends StatelessWidget {
             children: [
               // Up/Down arrow icon
               Icon(
-                isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                color: isPositive ? Colors.green : Colors.red,
-                size: 16,
+                Icons.trending_up,
+                color: isPositive ? Color(0xFF4CAF50) : Colors.red,
+                size: 18,
               ),
 
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
 
               // Gain/Loss amount and percentage
               Text(
@@ -76,7 +79,7 @@ class PortfolioValueCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: isPositive ? Colors.green : Colors.red,
+                  color: isPositive ? Color(0xFF4CAF50) : Colors.red,
                 ),
               ),
             ],

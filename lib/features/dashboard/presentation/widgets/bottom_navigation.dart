@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 
 /// Bottom navigation widget
 ///
 /// Displays the bottom navigation bar as shown in the Figma design
-/// with home, chart, mail, and profile icons.
+/// with home, portfolio, news, and profile icons.
 class BottomNavigation extends StatelessWidget {
   /// Currently selected tab index
   final int currentIndex;
@@ -20,7 +22,8 @@ class BottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
 
     return Container(
       decoration: BoxDecoration(
@@ -46,14 +49,14 @@ class BottomNavigation extends StatelessWidget {
                 brightness: brightness,
               ),
               _buildNavItem(
-                icon: Icons.bar_chart_outlined,
-                selectedIcon: Icons.bar_chart,
+                icon: Icons.account_balance_wallet_outlined,
+                selectedIcon: Icons.account_balance_wallet,
                 index: 1,
                 brightness: brightness,
               ),
               _buildNavItem(
-                icon: Icons.mail_outline,
-                selectedIcon: Icons.mail,
+                icon: Icons.article_outlined,
+                selectedIcon: Icons.article,
                 index: 2,
                 brightness: brightness,
               ),

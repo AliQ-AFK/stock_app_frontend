@@ -26,9 +26,9 @@ class PortfolioManagerService {
       StockHolding(
         holdingID: "h1",
         portfolioID: "p1",
-        stockID: "1",
-        quantity: 100,
-        averagePurchasePrice: 145.00,
+        stockID: "1", // TSLA
+        quantity: 150,
+        averagePurchasePrice: 195.00,
       ),
     );
 
@@ -36,9 +36,19 @@ class PortfolioManagerService {
       StockHolding(
         holdingID: "h2",
         portfolioID: "p1",
-        stockID: "3",
-        quantity: 50,
-        averagePurchasePrice: 290.00,
+        stockID: "2", // AAPL
+        quantity: 200,
+        averagePurchasePrice: 165.00,
+      ),
+    );
+
+    portfolio1.addHolding(
+      StockHolding(
+        holdingID: "h3",
+        portfolioID: "p1",
+        stockID: "3", // NVDA
+        quantity: 75,
+        averagePurchasePrice: 450.00,
       ),
     );
 

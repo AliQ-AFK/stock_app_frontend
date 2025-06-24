@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/models/user.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
+import 'package:stock_app_frontend/features/notifications/presentation/screens/notification_screen.dart';
 
 /// Dashboard header widget
 ///
@@ -14,13 +17,14 @@ class DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
-    final isLightMode = brightness == Brightness.light;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
+    final isLightMode = themeProvider.isLightMode;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Top row with Dashboard title, Pro badge, and action icons
+        // Top row with Dashboard title and action icons
         Row(
           children: [
             // Dashboard title
@@ -33,54 +37,55 @@ class DashboardHeader extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(width: 12),
-
-            // Pro badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isLightMode ? Colors.grey[300] : Colors.grey[700],
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                'Pro',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.getText(brightness),
-                ),
-              ),
-            ),
-
             const Spacer(),
 
-            // Search icon
-            IconButton(
-              onPressed: () {
-                // TODO: Implement search functionality
-              },
-              icon: Icon(
-                Icons.search,
-                color: AppColors.getText(brightness),
-                size: 24,
+            // Search container
+            Container(
+              width: 111,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.getBG(brightness),
+                border: Border.all(
+                  color: AppColors.getText(brightness),
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(right: 8, top: 8, bottom: 8),
+                    child: Icon(
+                      Icons.search,
+                      color: AppColors.getText(brightness),
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
             ),
 
             // Notification icon
             IconButton(
               onPressed: () {
-                // TODO: Implement notifications
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NotificationScreen()),
+                );
               },
               icon: Icon(
                 Icons.notifications_outlined,
                 color: AppColors.getText(brightness),
                 size: 24,
               ),
+              padding: EdgeInsets.all(8),
+              constraints: BoxConstraints(minWidth: 40, minHeight: 40),
             ),
           ],
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
 
         // User greeting section
         Row(

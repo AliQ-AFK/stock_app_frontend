@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/models/news_article.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 
 /// News card widget
 ///
@@ -18,7 +20,8 @@ class NewsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
     final isLightMode = brightness == Brightness.light;
 
     return GestureDetector(
@@ -26,7 +29,7 @@ class NewsCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black87,
+          color: AppColors.getGreyBG(brightness),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -57,19 +60,19 @@ class NewsCard extends StatelessWidget {
                     children: [
                       Text(
                         article.source,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white70,
+                          color: AppColors.getText(brightness).withOpacity(0.7),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _getTimeAgo(article.date),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
-                          color: Colors.white54,
+                          color: AppColors.getText(brightness).withOpacity(0.5),
                         ),
                       ),
                       const Spacer(),
@@ -101,10 +104,10 @@ class NewsCard extends StatelessWidget {
                   // News headline
                   Text(
                     article.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: AppColors.getText(brightness),
                       height: 1.3,
                     ),
                     maxLines: 2,
@@ -115,9 +118,9 @@ class NewsCard extends StatelessWidget {
             ),
 
             // Arrow icon
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios,
-              color: Colors.white54,
+              color: AppColors.getText(brightness).withOpacity(0.5),
               size: 16,
             ),
           ],

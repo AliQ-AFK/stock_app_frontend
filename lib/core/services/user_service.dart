@@ -23,29 +23,52 @@ class UserService {
       password: "password456",
       phoneNumber: "0987654321",
     ),
+    User(
+      userID: "3",
+      name: "Test User",
+      email: "test@test.com",
+      username: "testuser",
+      password: "123456",
+      phoneNumber: "5555555555",
+    ),
   ];
 
   /// Currently logged in user
   static User? _currentUser;
 
-  /// Authenticates a user with username and password
+  /// Authenticates a user with email and password
   ///
-  /// [username] - Username to authenticate
+  /// [email] - Email address to authenticate
   /// [password] - Password to verify
   /// Returns the authenticated user or null if authentication fails
-  static Future<User?> login(String username, String password) async {
+  static Future<User?> login(String email, String password) async {
     // Simulate network delay
     await Future.delayed(Duration(seconds: 1));
 
     try {
       final user = _users.firstWhere(
-        (u) => u.username == username && u.password == password,
+        (u) =>
+            u.email.toLowerCase() == email.toLowerCase() &&
+            u.password == password,
       );
       user.updateLastLogin();
       _currentUser = user;
       return user;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Checks if an email already exists in the system
+  ///
+  /// [email] - Email address to check
+  /// Returns true if email exists, false otherwise
+  static bool emailExists(String email) {
+    try {
+      _users.firstWhere((u) => u.email.toLowerCase() == email.toLowerCase());
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 

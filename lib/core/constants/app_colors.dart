@@ -32,7 +32,7 @@ class AppColors {
   static const Color lightBG = Color(0xFFFFFDFD);
 
   /// Grey background color for light theme - used for secondary backgrounds
-  static const Color lightGreyBG = Color(0xFFD9D9D9);
+  static const Color lightGreyBG = Color(0xFFE8E8E8);
 
   /// Green color for light theme - used for success states and positive indicators
   static const Color lightGreen = Color(0xFF2A4E0A);
@@ -52,31 +52,31 @@ class AppColors {
   // --- Dark Theme Colors ---
 
   /// Primary red color for dark theme - used for errors, alerts, and danger states
-  static const Color darkRed = Color(0xFFFFA1A1);
+  static const Color darkRed = Color(0xFFFF6B6B);
 
   /// Primary text color for dark theme - used for main content text
-  static const Color darkText = Color(0xFFF2F2F2);
+  static const Color darkText = Color(0xFFFFFFFF);
 
   /// Background color for dark theme - used for main app background
-  static const Color darkBG = Color(0xFF1C1C1C);
+  static const Color darkBG = Color(0xFF121212);
 
   /// Grey background color for dark theme - used for secondary backgrounds
-  static const Color darkGreyBG = Color(0xFFD9D9D9);
+  static const Color darkGreyBG = Color(0xFF2C2C2C);
 
   /// Green color for dark theme - used for success states and positive indicators
-  static const Color darkGreen = Color(0xFF88FE99);
+  static const Color darkGreen = Color(0xFF4CAF50);
 
   /// Green background color for dark theme - used for success backgrounds
-  static const Color darkGreenBG = Color(0xFFDAF5DE);
+  static const Color darkGreenBG = Color(0xFF1B5E20);
 
   /// Stocks slider color for dark theme - used for stock-related UI elements
-  static const Color darkStocksSlider = Color(0xFF6B6969);
+  static const Color darkStocksSlider = Color(0xFF424242);
 
   /// Big elements color for dark theme - used for prominent UI components
-  static const Color darkBigElements = Color(0xFF848484);
+  static const Color darkBigElements = Color(0xFF3C3C3C);
 
   /// Dashboard and portfolio background color for dark theme
-  static const Color darkBGDashPort = Color(0xFF484545);
+  static const Color darkBGDashPort = Color(0xFF1E1E1E);
 
   // --- Helper Methods ---
 

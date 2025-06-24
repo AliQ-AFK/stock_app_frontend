@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/models/user.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
+import 'package:stock_app_frontend/core/services/user_service.dart';
 import '../../../dashboard/presentation/screens/main_screen.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -10,10 +13,91 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenstate extends State<SignInScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signIn() async {
+    // Validate input fields
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill in both email and password'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Basic email validation
+    if (!_emailController.text.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter a valid email address'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Attempt to authenticate user
+      final user = await UserService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+
+      if (user != null) {
+        // Authentication successful
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainScreen(user: user)),
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Welcome back, ${user.name}!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        // Authentication failed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invalid email or password. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('An error occurred. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Check current theme brightness for asset selection
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
     final isLightMode = brightness == Brightness.light;
 
     return Scaffold(
@@ -55,6 +139,8 @@ class _SignInScreenstate extends State<SignInScreen> {
                   ),
                   SizedBox(height: 20),
                   TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w400,
@@ -62,7 +148,7 @@ class _SignInScreenstate extends State<SignInScreen> {
                     ),
                     decoration: InputDecoration(
                       prefixIcon: Icon(
-                        Icons.person,
+                        Icons.email,
                         color: AppColors.getText(brightness).withOpacity(0.5),
                       ),
                       hintText: 'Type your Email',
@@ -93,6 +179,7 @@ class _SignInScreenstate extends State<SignInScreen> {
                   ),
                   SizedBox(height: 20),
                   TextField(
+                    controller: _passwordController,
                     obscureText: true,
                     style: TextStyle(
                       fontSize: 18,
@@ -143,25 +230,7 @@ class _SignInScreenstate extends State<SignInScreen> {
                   ///Sign in Button
                   Center(
                     child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: Implement proper authentication
-                        // For demo purposes, navigate to dashboard with dummy user
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MainScreen(
-                              user: User(
-                                userID: "1",
-                                name: "Rebecca Smith",
-                                email: "rebecca@example.com",
-                                username: "rebecca",
-                                password: "password",
-                                phoneNumber: "1234567890",
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: _isLoading ? null : _signIn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isLightMode
                             ? Colors.grey[300]
@@ -178,13 +247,24 @@ class _SignInScreenstate extends State<SignInScreen> {
                         ),
                         elevation: 0,
                       ),
-                      child: Text(
-                        'Sign In',
-                        style: TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isLightMode ? Colors.black : Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              'Sign In',
+                              style: TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                     ),
                   ),
                   SizedBox(height: 20),
@@ -234,7 +314,7 @@ class _SignInScreenstate extends State<SignInScreen> {
                                   height: 35,
                                   width: 35,
                                   child: Image.asset(
-                                    'assets/logos/google_login.png',
+                                    'assets/icons/google_login.png',
                                     height: 35,
                                   ),
                                 ),

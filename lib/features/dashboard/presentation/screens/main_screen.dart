@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:stock_app_frontend/core/models/user.dart';
+import 'package:stock_app_frontend/features/profile/presentation/screens/my_account_screen.dart';
+import 'package:stock_app_frontend/features/watchlist/presentation/screens/watchlist_screen.dart';
+import 'package:stock_app_frontend/features/stocks/presentation/screens/my_stocks_screen.dart';
 import 'dashboard_screen.dart';
 import '../widgets/bottom_navigation.dart';
 
@@ -41,20 +44,122 @@ class _MainScreenState extends State<MainScreen> {
       case 0:
         return DashboardScreen(user: widget.user);
       case 1:
-        return _buildPlaceholderScreen('Analytics', Icons.bar_chart);
+        return _buildPortfolioScreen();
       case 2:
-        return _buildPlaceholderScreen('Messages', Icons.mail);
+        return _buildPlaceholderScreen('News', Icons.article);
       case 3:
-        return _buildPlaceholderScreen('Profile', Icons.person);
+        return MyAccountScreen(user: widget.user);
       default:
         return DashboardScreen(user: widget.user);
     }
   }
 
+  /// Builds the Portfolio screen with stock options
+  Widget _buildPortfolioScreen() {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Portfolio',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+        ),
+        automaticallyImplyLeading: false,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.account_balance_wallet, size: 64, color: Colors.grey),
+            const SizedBox(height: 24),
+            Text(
+              'Portfolio Overview',
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 32),
+
+            // My Stocks Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => MyStocksScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.trending_up, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'My Stocks',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Watchlist Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => WatchlistScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.bookmark_outline, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'My Watchlist',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Builds a placeholder screen for unimplemented tabs
   Widget _buildPlaceholderScreen(String title, IconData icon) {
     return Scaffold(
-      appBar: AppBar(title: Text(title), automaticallyImplyLeading: false),
+      appBar: AppBar(
+        title: Text(
+          title,
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+        ),
+        automaticallyImplyLeading: false,
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -64,7 +169,7 @@ class _MainScreenState extends State<MainScreen> {
             Text(
               '$title Screen',
               style: const TextStyle(
-                fontSize: 24,
+                fontSize: 28,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey,
               ),

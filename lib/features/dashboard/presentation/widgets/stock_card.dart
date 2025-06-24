@@ -23,9 +23,9 @@ class StockCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 100,
-        height: 120,
-        padding: const EdgeInsets.all(12),
+        width: 85,
+        height: 100,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.black87,
           borderRadius: BorderRadius.circular(12),
@@ -36,11 +36,11 @@ class StockCard extends StatelessWidget {
           children: [
             // Stock logo/icon placeholder
             Container(
-              width: 32,
-              height: 32,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 color: _getStockColor(stock.symbol),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Center(child: _getStockIcon(stock.symbol)),
             ),
@@ -78,21 +78,21 @@ class StockCard extends StatelessWidget {
   Color _getStockColor(String symbol) {
     switch (symbol) {
       case 'TSLA':
-        return Colors.red;
+        return Color(0xFFE31937); // Tesla red
       case 'AAPL':
-        return Colors.grey[800]!;
+        return Color(0xFF000000); // Apple black
       case 'NVDA':
-        return Colors.green[700]!;
+        return Color(0xFF76B900); // NVIDIA green
       case 'AMD':
-        return Colors.red[700]!;
+        return Color(0xFFED1C24); // AMD red
       case 'META':
-        return Colors.blue[700]!;
+        return Color(0xFF0866FF); // Meta blue
       case 'GOOGL':
-        return Colors.blue[600]!;
+        return Color(0xFF4285F4); // Google blue
       case 'MSFT':
-        return Colors.blue[800]!;
+        return Color(0xFF00BCF2); // Microsoft blue
       case 'AMZN':
-        return Colors.orange[700]!;
+        return Color(0xFFFF9900); // Amazon orange
       default:
         return Colors.grey[600]!;
     }
@@ -102,50 +102,105 @@ class StockCard extends StatelessWidget {
   Widget _getStockIcon(String symbol) {
     switch (symbol) {
       case 'TSLA':
-        return const Text(
-          'T',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Text(
+            'T',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontFamily: 'System',
+            ),
           ),
         );
       case 'AAPL':
-        return const Icon(Icons.apple, color: Colors.white, size: 16);
+        return Container(
+          padding: EdgeInsets.all(2),
+          child: Icon(Icons.apple, color: Colors.white, size: 20),
+        );
       case 'NVDA':
-        return const Text(
-          'N',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Text(
+            'N',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         );
       case 'AMD':
-        return const Text(
-          'AMD',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(2),
+          child: Text(
+            'AMD',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
           ),
         );
       case 'META':
-        return const Text(
-          'M',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Transform.rotate(
+            angle: 0.1,
+            child: Text(
+              'f',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        );
+      case 'GOOGL':
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Text(
+            'G',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+        );
+      case 'MSFT':
+        return Container(
+          padding: EdgeInsets.all(2),
+          child: Icon(Icons.window, color: Colors.white, size: 18),
+        );
+      case 'AMZN':
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Text(
+            'a',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         );
       default:
-        return Text(
-          symbol.substring(0, 1),
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Text(
+            symbol.substring(0, 1),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         );
     }

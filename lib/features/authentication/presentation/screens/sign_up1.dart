@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'sign_up2.dart';
 
@@ -9,10 +11,24 @@ class SignUp1 extends StatefulWidget {
 }
 
 class _SignUp1state extends State<SignUp1> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Check current theme brightness for asset selection
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
     final isLightMode = brightness == Brightness.light;
 
     return Scaffold(
@@ -53,6 +69,7 @@ class _SignUp1state extends State<SignUp1> {
                   ),
                   SizedBox(height: 20),
                   TextField(
+                    controller: _emailController,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w400,
@@ -60,7 +77,7 @@ class _SignUp1state extends State<SignUp1> {
                     ),
                     decoration: InputDecoration(
                       prefixIcon: Icon(
-                        Icons.person,
+                        Icons.email,
                         color: AppColors.getText(brightness).withOpacity(0.5),
                       ),
                       hintText: 'Type your Email',
@@ -91,6 +108,7 @@ class _SignUp1state extends State<SignUp1> {
                   ),
                   SizedBox(height: 20),
                   TextField(
+                    controller: _passwordController,
                     obscureText: true,
                     style: TextStyle(
                       fontSize: 18,
@@ -130,6 +148,7 @@ class _SignUp1state extends State<SignUp1> {
                   ),
                   SizedBox(height: 20),
                   TextField(
+                    controller: _confirmPasswordController,
                     obscureText: true,
                     style: TextStyle(
                       fontSize: 18,
@@ -141,7 +160,7 @@ class _SignUp1state extends State<SignUp1> {
                         Icons.lock,
                         color: AppColors.getText(brightness).withOpacity(0.5),
                       ),
-                      hintText: 'Type your Password',
+                      hintText: 'Confirm your Password',
                       hintStyle: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w400,
@@ -162,10 +181,53 @@ class _SignUp1state extends State<SignUp1> {
                   Center(
                     child: ElevatedButton(
                       onPressed: () {
-                        // TODO: Implement save data
+                        // Validate form data
+                        if (_emailController.text.isEmpty ||
+                            _passwordController.text.isEmpty ||
+                            _confirmPasswordController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Please fill all fields')),
+                          );
+                          return;
+                        }
+
+                        if (!_emailController.text.contains('@')) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Please enter a valid email'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (_passwordController.text.length < 6) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Password must be at least 6 characters',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (_passwordController.text !=
+                            _confirmPasswordController.text) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Passwords do not match')),
+                          );
+                          return;
+                        }
+
+                        // Navigate to next screen with data
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => SignUp2()),
+                          MaterialPageRoute(
+                            builder: (context) => SignUp2(
+                              email: _emailController.text,
+                              password: _passwordController.text,
+                            ),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -240,7 +302,7 @@ class _SignUp1state extends State<SignUp1> {
                                   height: 35,
                                   width: 35,
                                   child: Image.asset(
-                                    'assets/logos/google_login.png',
+                                    'assets/icons/google_login.png',
                                     height: 35,
                                   ),
                                 ),
