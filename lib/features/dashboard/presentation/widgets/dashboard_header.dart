@@ -95,12 +95,12 @@ class DashboardHeader extends StatelessWidget {
               radius: 24,
               backgroundColor: Colors.grey[300],
               backgroundImage: const AssetImage(
-                'assets/images/profile_placeholder.png',
+                'assets/images/profilepic.jpg',
               ),
               onBackgroundImageError: (exception, stackTrace) {
                 // Handle image loading error
               },
-              child: Icon(Icons.person, color: Colors.grey[600], size: 24),
+
             ),
 
             const SizedBox(width: 12),

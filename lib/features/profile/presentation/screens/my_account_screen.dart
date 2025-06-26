@@ -104,11 +104,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                 child: ClipOval(
                   child: Container(
                     color: AppColors.getGreyBG(brightness),
-                    child: Icon(
-                      Icons.person,
-                      size: 60,
-                      color: AppColors.getText(brightness).withOpacity(0.6),
-                    ),
+                    child: Image.asset('assets/images/profilepic.jpg'),
                   ),
                 ),
               ),

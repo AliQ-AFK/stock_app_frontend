@@ -413,7 +413,7 @@ class _SignUp2state extends State<SignUp2> {
                         Text(
                           selectedDate != null
                               ? '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
-                              : 'Select your date of birth (18+ only)',
+                              : 'Select your date of birth',
                           style: TextStyle(
                             fontSize: selectedDate != null ? 18 : 20,
                             fontWeight: FontWeight.w400,
