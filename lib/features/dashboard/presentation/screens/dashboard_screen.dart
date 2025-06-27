@@ -12,6 +12,7 @@ import 'package:stock_app_frontend/core/services/news_service.dart';
 import 'package:stock_app_frontend/core/services/watchlist_service.dart';
 import 'package:stock_app_frontend/features/stocks/presentation/screens/my_stocks_screen.dart';
 import 'package:stock_app_frontend/features/watchlist/presentation/screens/watchlist_screen.dart';
+import 'package:stock_app_frontend/features/notifications/presentation/screens/notification_screen.dart';
 import '../widgets/portfolio_value_card.dart';
 import '../widgets/stock_card.dart';
 import '../widgets/news_card.dart';
@@ -116,9 +117,83 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final brightness = themeProvider.brightness;
+    final isLightMode = brightness == Brightness.light;
 
     return Scaffold(
       backgroundColor: AppColors.getBG(brightness),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            // Dashboard title
+            Text(
+              'Dashboard',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                color: AppColors.getText(brightness),
+              ),
+            ),
+            const Spacer(),
+
+            // Search container
+            Container(
+              width: 155,
+              height: 36,
+              child: TextField(
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.getText(brightness),
+                ),
+                textAlignVertical: TextAlignVertical
+                    .center, // ✅ ช่วยจัด text ให้อยู่กลางแนวดิ่ง
+                decoration: InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 8,
+                  ),
+                  suffixIcon: Icon(
+                    Icons.search,
+                    color: AppColors.getText(brightness).withOpacity(0.5),
+                    size: 20,
+                  ),
+                  hintText: 'Search...',
+                  hintStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.getText(brightness).withOpacity(0.5),
+                  ),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: AppColors.getText(brightness).withOpacity(0.7),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Notification icon
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NotificationScreen()),
+                );
+              },
+              icon: Icon(
+                Icons.notifications_outlined,
+                color: AppColors.getText(brightness),
+                size: 28,
+              ),
+              padding: EdgeInsets.all(8),
+              constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())

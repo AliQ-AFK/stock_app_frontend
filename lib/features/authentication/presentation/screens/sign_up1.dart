@@ -291,9 +291,7 @@ class _SignUp1state extends State<SignUp1> {
                           child: InkWell(
                             customBorder: CircleBorder(),
                             splashColor: Colors.grey.withOpacity(0.3),
-                            onTap: () {
-                              // TODO: Implement Google
-                            },
+                            onTap: () {},
                             child: SizedBox(
                               width: 48,
                               height: 48,

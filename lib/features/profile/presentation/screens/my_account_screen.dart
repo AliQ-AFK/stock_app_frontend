@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/models/user.dart';
 import 'package:stock_app_frontend/core/providers/theme_provider.dart';
+import 'package:stock_app_frontend/core/services/payment_service.dart';
 import 'package:stock_app_frontend/features/premium/presentation/screens/alpha_pro_screen.dart';
+import 'package:stock_app_frontend/features/premium/presentation/widgets/pro_badge.dart';
 import 'package:stock_app_frontend/features/authentication/presentation/screens/landing_screen.dart';
 import 'package:stock_app_frontend/features/notifications/presentation/screens/notification_screen.dart';
 
@@ -17,6 +19,23 @@ class MyAccountScreen extends StatefulWidget {
 }
 
 class _MyAccountScreenState extends State<MyAccountScreen> {
+  bool _isPro = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkProStatus();
+  }
+
+  void _checkProStatus() async {
+    bool proStatus = await PaymentService.getProStatus(widget.user.userID);
+    setState(() {
+      _isPro = proStatus;
+      _isLoading = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -39,6 +58,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                 color: AppColors.getText(brightness),
               ),
             ),
+            if (_isPro) ...[SizedBox(width: 8), ProBanner(text: 'PRO')],
             const Spacer(),
             IconButton(
               onPressed: () {
@@ -50,7 +70,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
               icon: Icon(
                 Icons.notifications_outlined,
                 color: AppColors.getText(brightness),
-                size: 24,
+                size: 28,
               ),
               padding: EdgeInsets.all(8),
               constraints: BoxConstraints(minWidth: 40, minHeight: 40),
@@ -88,25 +108,13 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     return Container(
       child: Column(
         children: [
-          // Profile Picture with Edit Icon
+          // Profile Picture with Pro Badge and Edit Icon
           Stack(
             children: [
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.getText(brightness).withOpacity(0.2),
-                    width: 2,
-                  ),
-                ),
-                child: ClipOval(
-                  child: Container(
-                    color: AppColors.getGreyBG(brightness),
-                    child: Image.asset('assets/images/profilepic.jpg'),
-                  ),
-                ),
+              ProProfilePicture(
+                imageUrl: 'assets/images/profilepic.jpg',
+                size: 120,
+                isPro: _isPro,
               ),
               Positioned(
                 bottom: 0,
@@ -130,14 +138,20 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
 
           SizedBox(height: 16),
 
-          // User Name
-          Text(
-            widget.user.name,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: AppColors.getText(brightness),
-            ),
+          // User Name with Pro Badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                widget.user.name,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.getText(brightness),
+                ),
+              ),
+              if (_isPro) ...[SizedBox(width: 8), ProBanner(text: 'PRO')],
+            ],
           ),
 
           SizedBox(height: 8),
@@ -147,6 +161,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
             '${widget.user.email} | ${widget.user.phoneNumber}',
             style: TextStyle(
               fontSize: 16,
+              fontWeight: FontWeight.w500,
               color: AppColors.getText(brightness).withOpacity(0.7),
             ),
           ),
@@ -156,51 +171,120 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   }
 
   Widget _buildProBanner(Brightness brightness, bool isLightMode) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: AppColors.getGreyBG(brightness),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Get AlphaWave Pro!',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.getText(brightness),
+    if (_isPro) {
+      // Show Pro Status
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.getGreen(brightness).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.getGreen(brightness), width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.star, color: AppColors.getGreen(brightness), size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AlphaWave Pro Active',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.getText(brightness),
+                    ),
+                  ),
+                  Text(
+                    'Enjoying all premium features',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.getText(brightness).withOpacity(0.7),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.getText(brightness),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AlphaPro()),
-                );
-              },
-              child: Text(
-                'info',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.getBG(brightness),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.getGreen(brightness),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AlphaPro(user: widget.user),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Manage',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.getBG(brightness),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    } else {
+      // Show Upgrade Banner
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.getGreyBG(brightness),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Get AlphaWave Pro!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.getText(brightness),
+                ),
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.getText(brightness),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AlphaPro(user: widget.user),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Upgrade',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.getBG(brightness),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildMenuItems(Brightness brightness, bool isLightMode) {
@@ -476,6 +560,8 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   }
 
   void _showDeleteAccountDialog() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final brightness = themeProvider.brightness;
     final TextEditingController deleteController = TextEditingController();
     bool canDelete = false;
 
@@ -531,6 +617,11 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
             TextButton(
               onPressed: canDelete
                   ? () {
+                      final themeProvider = Provider.of<ThemeProvider>(
+                        context,
+                        listen: false,
+                      );
+                      final brightness = themeProvider.brightness;
                       deleteController.dispose();
                       Navigator.pop(context);
                       Navigator.pushAndRemoveUntil(
@@ -543,13 +634,15 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Account deleted successfully'),
-                          backgroundColor: Colors.red,
+                          backgroundColor: AppColors.getRed(brightness),
                         ),
                       );
                     }
                   : null,
               style: TextButton.styleFrom(
-                foregroundColor: canDelete ? Colors.red : Colors.grey,
+                foregroundColor: canDelete
+                    ? AppColors.getRed(brightness)
+                    : AppColors.getText(brightness).withOpacity(0.5),
               ),
               child: Text('Delete Account'),
             ),

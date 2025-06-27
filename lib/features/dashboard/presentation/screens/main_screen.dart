@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/models/user.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
+import 'package:stock_app_frontend/features/notifications/presentation/screens/notification_screen.dart';
 import 'package:stock_app_frontend/features/profile/presentation/screens/my_account_screen.dart';
 import 'package:stock_app_frontend/features/watchlist/presentation/screens/watchlist_screen.dart';
 import 'package:stock_app_frontend/features/stocks/presentation/screens/my_stocks_screen.dart';
+import '../../../../core/constants/app_colors.dart';
 import 'dashboard_screen.dart';
 import '../widgets/bottom_navigation.dart';
 
@@ -56,13 +60,83 @@ class _MainScreenState extends State<MainScreen> {
 
   /// Builds the Portfolio screen with stock options
   Widget _buildPortfolioScreen() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
+    final isLightMode = brightness == Brightness.light;
     return Scaffold(
+      backgroundColor: AppColors.getBG(brightness),
       appBar: AppBar(
-        title: Text(
-          'Portfolio',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
-        ),
         automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            // Dashboard title
+            Text(
+              'Portfolio',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                color: AppColors.getText(brightness),
+              ),
+            ),
+
+            const Spacer(),
+            // Search container
+            Container(
+              width: 155,
+              height: 36,
+              child: TextField(
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w400,
+                  color: isLightMode ? Colors.black87 : Colors.white70,
+                ),
+                textAlignVertical: TextAlignVertical
+                    .center, // ✅ ช่วยจัด text ให้อยู่กลางแนวดิ่ง
+                decoration: InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 8,
+                  ),
+                  suffixIcon: Icon(
+                    Icons.search,
+                    color: AppColors.getText(brightness).withOpacity(0.5),
+                    size: 20,
+                  ),
+                  hintText: 'Search...',
+                  hintStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.getText(brightness).withOpacity(0.5),
+                  ),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: isLightMode ? Colors.black87 : Colors.white70,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Notification icon
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NotificationScreen()),
+                );
+              },
+              icon: Icon(
+                Icons.notifications_outlined,
+                color: AppColors.getText(brightness),
+                size: 28,
+              ),
+              padding: EdgeInsets.all(8),
+              constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
@@ -37,6 +38,15 @@ class _SignUp2state extends State<SignUp2> {
     super.dispose();
   }
 
+  /// Simple Validation (Basic Level)
+  bool _isValidName(String name) {
+    return name.isNotEmpty && name.length >= 2;
+  }
+
+  bool _isValidPhone(String phone) {
+    return phone.isNotEmpty && phone.length >= 7;
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -63,18 +73,27 @@ class _SignUp2state extends State<SignUp2> {
   }
 
   Future<void> _completeSignUp() async {
-    // Validate all fields
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Please enter your full name')));
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final brightness = themeProvider.brightness;
+
+    // Simple validation checks
+    if (!_isValidName(_nameController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter a valid name (at least 2 characters)'),
+        ),
+      );
       return;
     }
 
-    if (_phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Please enter your phone number')));
+    if (!_isValidPhone(_phoneController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please enter a valid phone number (at least 7 digits)',
+          ),
+        ),
+      );
       return;
     }
 
@@ -104,7 +123,7 @@ class _SignUp2state extends State<SignUp2> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('An account with this email already exists'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.getRed(brightness),
         ),
       );
       return;
@@ -141,14 +160,14 @@ class _SignUp2state extends State<SignUp2> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Welcome to AlphaWave, ${newUser.name}!'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.getGreen(brightness),
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Registration failed. Please try again.'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.getRed(brightness),
         ),
       );
     } finally {
@@ -175,7 +194,7 @@ class _SignUp2state extends State<SignUp2> {
           style: TextStyle(
             fontSize: 36,
             fontWeight: FontWeight.w500,
-            color: isLightMode ? Colors.black87 : Colors.white70,
+            color: AppColors.getText(brightness),
           ),
         ),
       ),
@@ -197,16 +216,22 @@ class _SignUp2state extends State<SignUp2> {
                   style: TextStyle(
                     fontSize: 25,
                     fontWeight: FontWeight.w400,
-                    color: isLightMode ? Colors.black87 : Colors.white70,
+                    color: AppColors.getText(brightness),
                   ),
                 ),
                 SizedBox(height: 20),
                 TextField(
                   controller: _nameController,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[a-zA-Z\s]'),
+                    ), // Only letters and spaces
+                  ],
+                  textCapitalization: TextCapitalization.words,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w400,
-                    color: isLightMode ? Colors.black87 : Colors.white70,
+                    color: AppColors.getText(brightness),
                   ),
                   decoration: InputDecoration(
                     prefixIcon: Icon(
@@ -223,7 +248,7 @@ class _SignUp2state extends State<SignUp2> {
                     fillColor: Colors.transparent,
                     enabledBorder: UnderlineInputBorder(
                       borderSide: BorderSide(
-                        color: isLightMode ? Colors.black87 : Colors.white70,
+                        color: AppColors.getText(brightness).withOpacity(0.7),
                       ),
                     ),
                   ),
@@ -236,21 +261,21 @@ class _SignUp2state extends State<SignUp2> {
                   style: TextStyle(
                     fontSize: 25,
                     fontWeight: FontWeight.w400,
-                    color: isLightMode ? Colors.black87 : Colors.white70,
+                    color: AppColors.getText(brightness),
                   ),
                 ),
                 SizedBox(height: 20),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Country code picker
+                    // Country code picker with matching underline
                     Container(
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: isLightMode
-                                ? Colors.black87
-                                : Colors.white70,
+                            color: AppColors.getText(
+                              brightness,
+                            ).withOpacity(0.7),
                           ),
                         ),
                       ),
@@ -267,7 +292,8 @@ class _SignUp2state extends State<SignUp2> {
                         alignLeft: false,
                         textStyle: TextStyle(
                           color: AppColors.getText(brightness),
-                          fontSize: 16,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
                         ),
                         dialogTextStyle: TextStyle(
                           color: AppColors.getText(brightness),
@@ -283,20 +309,24 @@ class _SignUp2state extends State<SignUp2> {
                         showDropDownButton: true,
                         padding: EdgeInsets.symmetric(
                           horizontal: 8,
-                          vertical: 0,
+                          vertical: 12,
                         ),
                       ),
                     ),
                     SizedBox(width: 10),
-                    // Phone number input
+                    // Phone number input with matching underline
                     Expanded(
                       child: TextField(
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter
+                              .digitsOnly, // Only numbers
+                        ],
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w400,
-                          color: isLightMode ? Colors.black87 : Colors.white70,
+                          color: AppColors.getText(brightness),
                         ),
                         decoration: InputDecoration(
                           prefixIcon: Icon(
@@ -317,9 +347,9 @@ class _SignUp2state extends State<SignUp2> {
                           fillColor: Colors.transparent,
                           enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(
-                              color: isLightMode
-                                  ? Colors.black87
-                                  : Colors.white70,
+                              color: AppColors.getText(
+                                brightness,
+                              ).withOpacity(0.7),
                             ),
                           ),
                         ),
@@ -330,55 +360,65 @@ class _SignUp2state extends State<SignUp2> {
                 SizedBox(height: 30),
 
                 /// Gender Dropdown
-                Row(
-                  children: [
-                    Text(
-                      'Gender',
+                Text(
+                  'Gender',
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.getText(brightness),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.getText(brightness).withOpacity(0.7),
+                      ),
+                    ),
+                  ),
+                  child: DropdownButtonFormField<String>(
+                    dropdownColor: AppColors.getBG(brightness),
+                    value: selectedGender,
+                    icon: Icon(
+                      Icons.arrow_drop_down,
+                      color: AppColors.getText(brightness).withOpacity(0.5),
+                    ),
+                    hint: Text(
+                      'Select your gender',
                       style: TextStyle(
-                        fontSize: 25,
+                        fontSize: 18,
                         fontWeight: FontWeight.w400,
-                        color: isLightMode ? Colors.black87 : Colors.white70,
+                        color: AppColors.getText(brightness).withOpacity(0.5),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(
+                        Icons.person_outline,
+                        color: AppColors.getText(brightness).withOpacity(0.5),
                       ),
-                      child: DropdownButton<String>(
-                        dropdownColor: AppColors.getBG(brightness),
-                        isExpanded: false,
-                        value: selectedGender,
-                        underline: const SizedBox(),
-                        icon: Icon(
-                          Icons.arrow_drop_down,
-                          color: AppColors.getText(brightness).withOpacity(0.5),
-                        ),
-                        hint: const Text(
-                          'Select Gender',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        items: genderOptions.map((gender) {
-                          return DropdownMenuItem<String>(
-                            value: gender,
-                            child: Text(
-                              gender,
-                              style: TextStyle(
-                                color: AppColors.getText(brightness),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedGender = value;
-                          });
-                        },
-                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 15),
                     ),
-                  ],
+                    items: genderOptions.map((gender) {
+                      return DropdownMenuItem<String>(
+                        value: gender,
+                        child: Text(
+                          gender,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.getText(brightness),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedGender = value;
+                      });
+                    },
+                  ),
                 ),
                 SizedBox(height: 30),
 
@@ -388,7 +428,7 @@ class _SignUp2state extends State<SignUp2> {
                   style: TextStyle(
                     fontSize: 25,
                     fontWeight: FontWeight.w400,
-                    color: isLightMode ? Colors.black87 : Colors.white70,
+                    color: AppColors.getText(brightness),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -399,7 +439,7 @@ class _SignUp2state extends State<SignUp2> {
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
-                          color: isLightMode ? Colors.black87 : Colors.white70,
+                          color: AppColors.getText(brightness).withOpacity(0.7),
                         ),
                       ),
                     ),
@@ -418,9 +458,7 @@ class _SignUp2state extends State<SignUp2> {
                             fontSize: selectedDate != null ? 18 : 20,
                             fontWeight: FontWeight.w400,
                             color: selectedDate != null
-                                ? (isLightMode
-                                      ? Colors.black87
-                                      : Colors.white70)
+                                ? AppColors.getText(brightness)
                                 : AppColors.getText(
                                     brightness,
                                   ).withOpacity(0.5),
@@ -437,12 +475,8 @@ class _SignUp2state extends State<SignUp2> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _completeSignUp,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isLightMode
-                          ? Colors.grey[300]
-                          : Colors.grey[700],
-                      foregroundColor: isLightMode
-                          ? Colors.black
-                          : Colors.white,
+                      backgroundColor: AppColors.getGreyBG(brightness),
+                      foregroundColor: AppColors.getText(brightness),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 85,
                         vertical: 10,
@@ -459,7 +493,7 @@ class _SignUp2state extends State<SignUp2> {
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                isLightMode ? Colors.black : Colors.white,
+                                AppColors.getText(brightness),
                               ),
                             ),
                           )

@@ -5,6 +5,7 @@ import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/models/user.dart';
 import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 import 'package:stock_app_frontend/core/services/user_service.dart';
+
 import '../../../dashboard/presentation/screens/main_screen.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -303,9 +304,7 @@ class _SignInScreenstate extends State<SignInScreen> {
                           child: InkWell(
                             customBorder: CircleBorder(),
                             splashColor: Colors.grey.withOpacity(0.3),
-                            onTap: () {
-                              // TODO: Implement Google
-                            },
+                            onTap: () {},
                             child: SizedBox(
                               width: 48,
                               height: 48,

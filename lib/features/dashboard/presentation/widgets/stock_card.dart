@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:stock_app_frontend/core/constants/app_colors.dart';
+import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 import 'package:stock_app_frontend/core/models/stock.dart';
 
 /// Stock card widget
@@ -17,6 +20,8 @@ class StockCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
     final changePercent = stock.calculateChangePercent();
     final isPositive = changePercent >= 0;
 
@@ -27,7 +32,7 @@ class StockCard extends StatelessWidget {
         height: 100,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.black87,
+          color: AppColors.getBigElements(brightness),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -51,10 +56,10 @@ class StockCard extends StatelessWidget {
               children: [
                 Text(
                   stock.symbol,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppColors.getText(brightness),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -63,7 +68,9 @@ class StockCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: isPositive ? Colors.green : Colors.red,
+                    color: isPositive
+                        ? AppColors.getGreen(brightness)
+                        : AppColors.getRed(brightness),
                   ),
                 ),
               ],
@@ -94,7 +101,7 @@ class StockCard extends StatelessWidget {
       case 'AMZN':
         return Color(0xFFFF9900); // Amazon orange
       default:
-        return Colors.grey[600]!;
+        return AppColors.getGreyBG(Brightness.light); // Use a neutral default
     }
   }
 
