@@ -6,11 +6,19 @@ import 'core/providers/theme_provider.dart';
 import 'core/services/portfolio_manager_service.dart';
 import 'core/services/watchlist_service.dart';
 import 'features/authentication/presentation/screens/landing_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; //reads api safely
 
 /// Main entry point for the AlphaWave trading application
-void main() {
+void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+
   // Initialize all demo data
   initializeApp();
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
