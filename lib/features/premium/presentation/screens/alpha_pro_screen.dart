@@ -333,7 +333,7 @@ class _AlphaProstate extends State<AlphaPro> {
                           ),
                           SizedBox(height: 10),
                           Text(
-                            'You are a Pro Member! 🎉',
+                            'You are a Pro Member!',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -342,7 +342,7 @@ class _AlphaProstate extends State<AlphaPro> {
                           ),
                           SizedBox(height: 10),
                           Text(
-                            'Enjoy all premium features of AlphaWave',
+                            'Enjoy all premium features!',
                             style: TextStyle(
                               fontSize: 16,
                               color: AppColors.getText(brightness),
@@ -557,9 +557,11 @@ class _AlphaProstate extends State<AlphaPro> {
                               child: Text('Cancel Membership'),
                             ),
                           ),
+
                         ],
                       ),
                     ),
+                    SizedBox(height: 25,)
                   ],
                 ],
               ),
