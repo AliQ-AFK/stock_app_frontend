@@ -30,50 +30,52 @@ class StockCard extends StatelessWidget {
       child: Container(
         width: 85,
         height: 100,
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: AppColors.getBigElements(brightness),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Stock logo/icon placeholder
+            // Stock logo/icon - centered and bigger
             Container(
-              width: 28,
-              height: 28,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: _getStockColor(stock.symbol),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Center(child: _getStockIcon(stock.symbol)),
             ),
 
-            // Stock symbol and percentage
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  stock.symbol,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.getText(brightness),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isPositive
-                        ? AppColors.getGreen(brightness)
-                        : AppColors.getRed(brightness),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 8),
+
+            // Stock symbol - centered
+            Text(
+              stock.symbol,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.getText(brightness),
+              ),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 2),
+
+            // Percentage change - centered
+            Text(
+              '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(1)}%',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isPositive
+                    ? AppColors.getGreen(brightness)
+                    : AppColors.getRed(brightness),
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -110,11 +112,11 @@ class StockCard extends StatelessWidget {
     switch (symbol) {
       case 'TSLA':
         return Container(
-          padding: EdgeInsets.all(4),
+          padding: EdgeInsets.all(6),
           child: Text(
             'T',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               color: Colors.white,
               fontFamily: 'System',
@@ -123,16 +125,16 @@ class StockCard extends StatelessWidget {
         );
       case 'AAPL':
         return Container(
-          padding: EdgeInsets.all(2),
-          child: Icon(Icons.apple, color: Colors.white, size: 20),
+          padding: EdgeInsets.all(4),
+          child: Icon(Icons.apple, color: Colors.white, size: 24),
         );
       case 'NVDA':
         return Container(
-          padding: EdgeInsets.all(4),
+          padding: EdgeInsets.all(6),
           child: Text(
             'N',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               color: Colors.white,
               fontStyle: FontStyle.italic,
@@ -141,11 +143,11 @@ class StockCard extends StatelessWidget {
         );
       case 'AMD':
         return Container(
-          padding: EdgeInsets.all(2),
+          padding: EdgeInsets.all(4),
           child: Text(
             'AMD',
             style: TextStyle(
-              fontSize: 9,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
               color: Colors.white,
               letterSpacing: 0.5,
@@ -154,13 +156,13 @@ class StockCard extends StatelessWidget {
         );
       case 'META':
         return Container(
-          padding: EdgeInsets.all(4),
+          padding: EdgeInsets.all(6),
           child: Transform.rotate(
             angle: 0.1,
             child: Text(
               'f',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
                 fontStyle: FontStyle.italic,
@@ -170,11 +172,11 @@ class StockCard extends StatelessWidget {
         );
       case 'GOOGL':
         return Container(
-          padding: EdgeInsets.all(4),
+          padding: EdgeInsets.all(6),
           child: Text(
             'G',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               color: Colors.white,
             ),
@@ -182,16 +184,16 @@ class StockCard extends StatelessWidget {
         );
       case 'MSFT':
         return Container(
-          padding: EdgeInsets.all(2),
-          child: Icon(Icons.window, color: Colors.white, size: 18),
+          padding: EdgeInsets.all(4),
+          child: Icon(Icons.window, color: Colors.white, size: 22),
         );
       case 'AMZN':
         return Container(
-          padding: EdgeInsets.all(4),
+          padding: EdgeInsets.all(6),
           child: Text(
             'a',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               color: Colors.white,
               fontStyle: FontStyle.italic,
@@ -200,11 +202,11 @@ class StockCard extends StatelessWidget {
         );
       default:
         return Container(
-          padding: EdgeInsets.all(4),
+          padding: EdgeInsets.all(6),
           child: Text(
             symbol.substring(0, 1),
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),

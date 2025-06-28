@@ -2,19 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/providers/theme_provider.dart';
-import 'package:stock_app_frontend/core/models/stock.dart';
-import 'package:stock_app_frontend/core/services/stock_data_service.dart';
+import 'package:stock_app_frontend/session_manager.dart';
+import 'package:stock_app_frontend/core/services/finnhub_service.dart';
+import 'package:stock_app_frontend/features/stocks/presentation/screens/stock_search_screen.dart';
+import 'package:stock_app_frontend/features/stocks/presentation/screens/stock_detail_screen.dart';
 
+/// Watchlist Screen - Database-driven watchlist display
+/// Following lectures.md requirement: "Watchlist: A customizable list of stocks for users to monitor"
+/// Shows stocks saved to user's watchlist with live pricing
 class WatchlistScreen extends StatefulWidget {
   @override
   _WatchlistScreenState createState() => _WatchlistScreenState();
 }
 
 class _WatchlistScreenState extends State<WatchlistScreen> {
-  List<Stock> _watchlistStocks = [];
+  // Core state following lectures.md "core features first"
+  List<String> _watchlistSymbols = [];
+  Map<String, Map<String, dynamic>> _stockData =
+      {}; // Store quote and profile data
   bool _isLoading = true;
-  bool _isEditMode = false;
-  Set<String> _selectedStocks = {};
+  String _errorMessage = '';
+
+  final SessionManager _sessionManager = SessionManager();
 
   @override
   void initState() {
@@ -22,18 +31,84 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
     _loadWatchlistData();
   }
 
+  /// Load user's watchlist from session manager and fetch current data
+  /// Following lectures.md performance criteria: "API Response Time: Under 500ms"
   Future<void> _loadWatchlistData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
     try {
-      // Load all stocks and take first 12 as watchlist
-      final allStocks = await StockDataService.getAllStocks();
+      print('Loading user watchlist from session...');
+
+      // Get watchlist from session manager (synchronous operation)
+      final watchlistSymbols = _sessionManager.getWishlist();
+
+      if (watchlistSymbols.isEmpty) {
+        setState(() {
+          _watchlistSymbols = [];
+          _isLoading = false;
+        });
+        print('Watchlist is empty');
+        return;
+      }
+
+      // Fetch current data for all symbols (quotes and basic profile)
+      Map<String, Map<String, dynamic>> stockData = {};
+
+      for (final symbol in watchlistSymbols) {
+        try {
+          // Get quote and basic company profile
+          final quote = await FinnhubService.getQuote(symbol);
+          final profile = await FinnhubService.getCompanyProfile(symbol);
+
+          stockData[symbol] = {'quote': quote, 'profile': profile};
+        } catch (e) {
+          print('Error fetching data for $symbol: $e');
+        }
+      }
+
       setState(() {
-        _watchlistStocks = allStocks.take(12).toList();
+        _watchlistSymbols = watchlistSymbols;
+        _stockData = stockData;
         _isLoading = false;
       });
+
+      print('Watchlist loaded: ${_watchlistSymbols.length} stocks');
     } catch (e) {
       setState(() {
         _isLoading = false;
+        _errorMessage = 'Error loading watchlist: ${e.toString()}';
       });
+      print('Error loading watchlist: $e');
+    }
+  }
+
+  /// Remove stock from watchlist
+  void _removeFromWatchlist(String symbol) {
+    try {
+      final success = _sessionManager.removeFromWishlist(symbol);
+      if (success) {
+        setState(() {
+          _watchlistSymbols.removeWhere((s) => s == symbol);
+          _stockData.remove(symbol);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Removed $symbol from watchlist'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error removing $symbol: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -44,277 +119,332 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.getBG(brightness),
-      appBar: AppBar(
-        backgroundColor: AppColors.getBG(brightness),
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: AppColors.getText(brightness),
-            size: 24,
-          ),
-          onPressed: () => Navigator.pop(context),
+      appBar: _buildAppBar(brightness),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+          ? _buildErrorWidget(brightness)
+          : _watchlistSymbols.isEmpty
+          ? _buildEmptyState(brightness)
+          : _buildWatchlistContent(brightness),
+    );
+  }
+
+  /// Build app bar
+  PreferredSizeWidget _buildAppBar(Brightness brightness) {
+    return AppBar(
+      backgroundColor: AppColors.getBG(brightness),
+      elevation: 0,
+      leading: IconButton(
+        icon: Icon(
+          Icons.arrow_back,
+          color: AppColors.getText(brightness),
+          size: 24,
         ),
-        title: Row(
-          children: [
-            Text(
-              'My Watchlist',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w600,
-                color: AppColors.getText(brightness),
-              ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: Row(
+        children: [
+          Text(
+            'My Watchlist',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w600,
+              color: AppColors.getText(brightness),
             ),
-            Spacer(),
-            Container(
-              width: 111,
+          ),
+          const Spacer(),
+          // Search container - clickable to navigate to search screen
+          GestureDetector(
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => StockSearchScreen()),
+              );
+              // Refresh watchlist if a stock was added
+              if (result == true) {
+                _loadWatchlistData();
+              }
+            },
+            child: Container(
+              width: 155,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.getBG(brightness),
+                color: Colors.transparent,
                 border: Border.all(
-                  color: AppColors.getText(brightness),
-                  width: 2,
+                  color: AppColors.getText(brightness).withOpacity(0.7),
+                  width: 1,
                 ),
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        'Search...',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.getText(brightness).withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                  ),
                   Padding(
-                    padding: EdgeInsets.only(right: 8, top: 8, bottom: 8),
+                    padding: EdgeInsets.only(right: 8),
                     child: Icon(
                       Icons.search,
-                      color: AppColors.getText(brightness),
+                      color: AppColors.getText(brightness).withOpacity(0.5),
                       size: 20,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          // Header section with count and edit
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 29, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_watchlistStocks.length} Companies',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.getText(brightness),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isEditMode = !_isEditMode;
-                      if (!_isEditMode) {
-                        _selectedStocks.clear();
-                      }
-                    });
-                  },
-                  child: Text(
-                    _isEditMode ? 'Done' : 'Edit',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.getText(brightness),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Delete button (shown when in edit mode and stocks are selected)
-          if (_isEditMode && _selectedStocks.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 26, vertical: 8),
-              child: ElevatedButton(
-                onPressed: () => _deleteSelectedStocks(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.getRed(brightness),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(
-                  'Delete ${_selectedStocks.length} Stock${_selectedStocks.length == 1 ? '' : 's'}',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-
-          // Stock list
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 26),
-                    itemCount: _watchlistStocks.length,
-                    itemBuilder: (context, index) {
-                      final stock = _watchlistStocks[index];
-                      return _buildStockItem(stock, brightness);
-                    },
-                  ),
           ),
         ],
       ),
     );
   }
 
-  void _deleteSelectedStocks() {
-    setState(() {
-      _watchlistStocks.removeWhere(
-        (stock) => _selectedStocks.contains(stock.stockID),
-      );
-      _selectedStocks.clear();
-      _isEditMode = false;
-    });
+  /// Build error widget
+  Widget _buildErrorWidget(Brightness brightness) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 48,
+            color: AppColors.getText(brightness).withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage,
+            style: TextStyle(
+              color: AppColors.getText(brightness).withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadWatchlistData,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildStockItem(Stock stock, Brightness brightness) {
-    final changePercent = stock.calculateChangePercent();
-    final isPositive = changePercent >= 0;
-    final isSelected = _selectedStocks.contains(stock.stockID);
-
-    return Container(
-      height: 82,
-      margin: EdgeInsets.only(bottom: 0),
-      child: Row(
+  /// Build empty state
+  Widget _buildEmptyState(Brightness brightness) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Checkbox (shown in edit mode)
-          if (_isEditMode)
-            Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedStocks.remove(stock.stockID);
-                    } else {
-                      _selectedStocks.add(stock.stockID);
-                    }
-                  });
-                },
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.getText(brightness)
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: AppColors.getText(brightness),
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: isSelected
-                      ? Icon(
-                          Icons.check,
-                          color: AppColors.getBG(brightness),
-                          size: 16,
-                        )
-                      : null,
-                ),
-              ),
-            ),
-
-          // Stock icon
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: _getStockColor(stock.symbol),
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
-            ),
-            child: Center(child: _getStockIcon(stock.symbol)),
+          Icon(
+            Icons.star_outline,
+            size: 64,
+            color: AppColors.getText(brightness).withOpacity(0.3),
           ),
-
-          SizedBox(width: 20),
-
-          // Stock info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  stock.symbol,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.getText(brightness),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  stock.company,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.getText(brightness),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+          const SizedBox(height: 24),
+          Text(
+            'Your watchlist is empty',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+              color: AppColors.getText(brightness),
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Add stocks to monitor them here',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.getText(brightness).withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => StockSearchScreen()),
+              );
+              // Refresh watchlist if a stock was added
+              if (result == true) {
+                _loadWatchlistData();
+              }
+            },
+            icon: const Icon(Icons.search),
+            label: const Text('Search Stocks'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-          // Price and percentage
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
+  /// Build main watchlist content
+  Widget _buildWatchlistContent(Brightness brightness) {
+    return Column(
+      children: [
+        // Header section with count
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 33, vertical: 16),
+          child: Row(
             children: [
               Text(
-                stock.currentPrice.toStringAsFixed(2),
+                '${_watchlistSymbols.length} Companies',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.getText(brightness),
                 ),
               ),
-              SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isPositive ? Icons.trending_up : Icons.trending_down,
-                    size: 12,
-                    color: isPositive
-                        ? AppColors.getGreen(brightness)
-                        : AppColors.getRed(brightness),
-                  ),
-                  SizedBox(width: 2),
-                  Text(
-                    '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: isPositive
-                          ? AppColors.getGreen(brightness)
-                          : AppColors.getRed(brightness),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
-        ],
+        ),
+
+        // Watchlist items - big slider design
+        Container(
+          height: 150, // Same height as trending stocks
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _watchlistSymbols.length,
+            itemBuilder: (context, index) {
+              final symbol = _watchlistSymbols[index];
+              return _buildBigWatchlistCard(symbol, brightness, index);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build big watchlist card matching trending stocks design
+  Widget _buildBigWatchlistCard(
+    String symbol,
+    Brightness brightness,
+    int index,
+  ) {
+    final stockData = _stockData[symbol];
+    final quote = stockData?['quote'];
+    final profile = stockData?['profile'];
+
+    final currentPrice = quote?['c']?.toDouble() ?? 0.0;
+    final change = quote?['d']?.toDouble() ?? 0.0;
+    final changePercent = quote?['dp']?.toDouble() ?? 0.0;
+    final isPositive = changePercent >= 0;
+
+    final companyName = profile?['name'] ?? symbol;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                StockDetailScreen(symbol: symbol, companyName: companyName),
+          ),
+        );
+      },
+      child: Container(
+        width: 140, // Same width as trending stocks
+        margin: EdgeInsets.only(left: index == 0 ? 10 : 6, right: 6),
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.getGreyBG(brightness),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Company logo (centered at top)
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _getStockColor(symbol),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(child: _getStockIcon(symbol)),
+                ),
+                const SizedBox(height: 8),
+
+                // Symbol (centered)
+                Text(
+                  symbol,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.getText(brightness),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+
+                // Current price (centered)
+                Text(
+                  currentPrice > 0
+                      ? '\$${currentPrice.toStringAsFixed(2)}'
+                      : 'N/A',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.getText(brightness),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+
+                // Percentage change (centered)
+                Text(
+                  '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isPositive
+                        ? const Color(0xFF16A34A)
+                        : const Color(0xFFDC2626),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+
+            // Star icon for remove (top right corner)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: GestureDetector(
+                onTap: () => _removeFromWatchlist(symbol),
+                child: Container(
+                  padding: EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.star, color: Colors.amber, size: 16),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  /// Gets the brand color for different stocks
   Color _getStockColor(String symbol) {
     switch (symbol) {
       case 'TSLA':
@@ -334,81 +464,123 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
       case 'AMZN':
         return Color(0xFFFF9900); // Amazon orange
       default:
-        return Colors.grey[600]!;
+        final colors = [
+          Colors.blue,
+          Colors.green,
+          Colors.orange,
+          Colors.purple,
+          Colors.red,
+          Colors.teal,
+          Colors.indigo,
+          Colors.pink,
+        ];
+        return colors[symbol.hashCode % colors.length];
     }
   }
 
+  /// Gets the appropriate icon for different stocks
   Widget _getStockIcon(String symbol) {
     switch (symbol) {
       case 'TSLA':
-        return Text(
-          'T',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Text(
+            'T',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontFamily: 'System',
+            ),
           ),
         );
       case 'AAPL':
-        return Icon(Icons.apple, color: Colors.white, size: 20);
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Icon(Icons.apple, color: Colors.white, size: 26),
+        );
       case 'NVDA':
-        return Text(
-          'N',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            fontStyle: FontStyle.italic,
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Text(
+            'N',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         );
       case 'AMD':
-        return Text(
-          'AMD',
-          style: TextStyle(
-            fontSize: 8,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: 0.5,
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Text(
+            'AMD',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
           ),
         );
       case 'META':
-        return Text(
-          'f',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            fontStyle: FontStyle.italic,
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Transform.rotate(
+            angle: 0.1,
+            child: Text(
+              'f',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
         );
       case 'GOOGL':
-        return Text(
-          'G',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Text(
+            'G',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
           ),
         );
       case 'MSFT':
-        return Icon(Icons.window, color: Colors.white, size: 18);
+        return Container(
+          padding: EdgeInsets.all(4),
+          child: Icon(Icons.window, color: Colors.white, size: 24),
+        );
       case 'AMZN':
-        return Text(
-          'a',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            fontStyle: FontStyle.italic,
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Text(
+            'a',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         );
       default:
-        return Text(
-          symbol.substring(0, 1),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Text(
+            symbol.substring(0, 1),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         );
     }

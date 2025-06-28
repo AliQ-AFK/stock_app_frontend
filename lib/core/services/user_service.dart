@@ -2,34 +2,30 @@ import '../models/user.dart';
 
 /// Manages users with in-memory storage
 ///
-/// This service provides user authentication and management functionality
-/// using static in-memory storage for educational purposes.
+/// Following Lectures.md recommendations for AuthService functionality:
+/// - User registration and login
+/// - Secure authentication logic
+/// - Simple in-memory storage for educational purposes
 class UserService {
   /// Static in-memory storage for users
   static final List<User> _users = [
     User(
-      userID: "1",
-      name: "John Doe",
-      email: "john@example.com",
+      userId: "1",
       username: "johndoe",
+      email: "john@example.com",
       password: "password123",
-      phoneNumber: "1234567890",
     ),
     User(
-      userID: "2",
-      name: "Jane Smith",
-      email: "jane@example.com",
+      userId: "2",
       username: "janesmith",
+      email: "jane@example.com",
       password: "password456",
-      phoneNumber: "0987654321",
     ),
     User(
-      userID: "3",
-      name: "Test User",
-      email: "test@test.com",
+      userId: "3",
       username: "testuser",
+      email: "test@test.com",
       password: "123456",
-      phoneNumber: "5555555555",
     ),
   ];
 
@@ -38,6 +34,7 @@ class UserService {
 
   /// Authenticates a user with email and password
   ///
+  /// Following Lectures.md requirement: "Login: Registered users can log in"
   /// [email] - Email address to authenticate
   /// [password] - Password to verify
   /// Returns the authenticated user or null if authentication fails
@@ -51,10 +48,11 @@ class UserService {
             u.email.toLowerCase() == email.toLowerCase() &&
             u.password == password,
       );
-      user.updateLastLogin();
       _currentUser = user;
+      print('UserService: User ${user.username} logged in successfully');
       return user;
     } catch (e) {
+      print('UserService: Login failed for $email');
       return null;
     }
   }
@@ -72,20 +70,54 @@ class UserService {
     }
   }
 
+  /// Checks if a username already exists in the system
+  ///
+  /// [username] - Username to check
+  /// Returns true if username exists, false otherwise
+  static bool usernameExists(String username) {
+    try {
+      _users.firstWhere(
+        (u) => u.username.toLowerCase() == username.toLowerCase(),
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Registers a new user
   ///
-  /// [newUser] - User object to register
+  /// Following Lectures.md requirement: "Registration: Users can create an account"
+  /// [username] - Username for the new user
+  /// [email] - Email address for the new user
+  /// [password] - Password for the new user
   /// Returns the registered user
-  static Future<User> register(User newUser) async {
+  static Future<User> register({
+    required String username,
+    required String email,
+    required String password,
+  }) async {
     await Future.delayed(Duration(seconds: 1));
+
+    final newUser = User(
+      userId: DateTime.now().millisecondsSinceEpoch.toString(),
+      username: username,
+      email: email,
+      password: password,
+    );
+
     _users.add(newUser);
     _currentUser = newUser;
+    print('UserService: User ${newUser.username} registered successfully');
     return newUser;
   }
 
   /// Logs out the current user
   static void logout() {
-    _currentUser = null;
+    if (_currentUser != null) {
+      print('UserService: User ${_currentUser!.username} logged out');
+      _currentUser = null;
+    }
   }
 
   /// Gets the currently logged in user
@@ -95,17 +127,8 @@ class UserService {
     return _currentUser;
   }
 
-  /// Updates a user's profile information
-  ///
-  /// [updatedUser] - User object with updated information
-  static Future<void> updateProfile(User updatedUser) async {
-    await Future.delayed(Duration(milliseconds: 500));
-    final index = _users.indexWhere((u) => u.userID == updatedUser.userID);
-    if (index != -1) {
-      _users[index] = updatedUser;
-      if (_currentUser?.userID == updatedUser.userID) {
-        _currentUser = updatedUser;
-      }
-    }
+  /// Gets all registered users (for debugging)
+  static List<User> getAllUsers() {
+    return List.from(_users);
   }
 }

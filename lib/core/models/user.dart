@@ -1,67 +1,63 @@
 /// Represents a user account with basic information
 ///
-/// This class stores user registration details and authentication information
-/// for the AlphaWave trading application.
+/// Following Lectures.md data model specifications:
+/// User: userId, username, email, password_hash
+/// Simplified for educational purposes - keeping core fields only
 class User {
   /// Unique identifier for the user
-  String userID;
-
-  /// User's full name
-  String name;
-
-  /// User's email address
-  String email;
+  String userId;
 
   /// User's username for login
   String username;
 
-  /// User's password (plain text for simplicity in educational project)
-  String password;
+  /// User's email address
+  String email;
 
-  /// User's phone number
-  String phoneNumber;
+  /// User's password (simplified for educational project)
+  String password;
 
   /// Date when the account was created
   DateTime createdAt;
 
-  /// Date of the user's last login
-  DateTime lastLogin;
-
   /// Creates a new User instance
   ///
-  /// [userID] - Unique identifier for the user
-  /// [name] - User's full name
-  /// [email] - User's email address
+  /// [userId] - Unique identifier for the user
   /// [username] - User's username for login
+  /// [email] - User's email address
   /// [password] - User's password
-  /// [phoneNumber] - User's phone number
   /// [createdAt] - Optional creation date, defaults to current time
-  /// [lastLogin] - Optional last login date, defaults to current time
   User({
-    required this.userID,
-    required this.name,
-    required this.email,
+    required this.userId,
     required this.username,
+    required this.email,
     required this.password,
-    required this.phoneNumber,
     DateTime? createdAt,
-    DateTime? lastLogin,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       lastLogin = lastLogin ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now();
 
-  /// Updates the user's profile information
-  ///
-  /// [name] - New name for the user
-  /// [email] - New email for the user
-  /// [phoneNumber] - New phone number for the user
-  void updateProfile(String name, String email, String phoneNumber) {
-    this.name = name;
-    this.email = email;
-    this.phoneNumber = phoneNumber;
+  /// Convert to map for serialization
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'username': username,
+      'email': email,
+      'password': password,
+      'createdAt': createdAt.toIso8601String(),
+    };
   }
 
-  /// Updates the last login timestamp to the current time
-  void updateLastLogin() {
-    lastLogin = DateTime.now();
+  /// Create User from map
+  factory User.fromMap(Map<String, dynamic> map) {
+    return User(
+      userId: map['userId'] as String,
+      username: map['username'] as String,
+      email: map['email'] as String,
+      password: map['password'] as String,
+      createdAt: DateTime.parse(map['createdAt'] as String),
+    );
+  }
+
+  @override
+  String toString() {
+    return 'User{userId: $userId, username: $username, email: $email}';
   }
 }

@@ -32,7 +32,7 @@ class _DashboardHeaderState extends State<DashboardHeader> {
   }
 
   void _checkProStatus() async {
-    bool proStatus = await PaymentService.getProStatus(widget.user.userID);
+    bool proStatus = await PaymentService.getProStatus(widget.user.userId);
     setState(() {
       _isPro = proStatus;
       _isLoading = false;
@@ -69,7 +69,7 @@ class _DashboardHeaderState extends State<DashboardHeader> {
                   Row(
                     children: [
                       Text(
-                        'Hi, ${widget.user.name}',
+                        'Hi, ${widget.user.username}',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,

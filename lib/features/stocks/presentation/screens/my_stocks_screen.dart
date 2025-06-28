@@ -2,50 +2,126 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/providers/theme_provider.dart';
-import 'package:stock_app_frontend/core/models/stock.dart';
-import 'package:stock_app_frontend/core/services/stock_data_service.dart';
+import 'package:stock_app_frontend/session_manager.dart';
+import 'package:stock_app_frontend/core/services/finnhub_service.dart';
+import 'package:stock_app_frontend/features/stocks/presentation/screens/stock_search_screen.dart';
+import 'package:stock_app_frontend/features/stocks/presentation/screens/stock_detail_screen.dart';
 
+/// My Stocks Screen - Database-driven portfolio display
+/// Following lectures.md requirement: "Portfolio Management Features"
+/// Shows real user holdings from database with live pricing
 class MyStocksScreen extends StatefulWidget {
   @override
   _MyStocksScreenState createState() => _MyStocksScreenState();
 }
 
 class _MyStocksScreenState extends State<MyStocksScreen> {
-  List<Stock> _userStocks = [];
+  // Core state following lectures.md "core features first"
+  List<PortfolioStock> _portfolioStocks = [];
+  Map<String, double> _currentPrices = {};
+  Map<String, Map<String, dynamic>> _stockData =
+      {}; // Store quote and profile data
   bool _isLoading = true;
-  bool _isRecentlyAscending = true;
+
+  String _errorMessage = '';
+
+  final SessionManager _sessionManager = SessionManager();
 
   @override
   void initState() {
     super.initState();
-    _loadUserStocks();
+    _loadPortfolioData();
   }
 
-  Future<void> _loadUserStocks() async {
+  /// Load user's portfolio from session manager and fetch current prices
+  /// Following lectures.md performance criteria: "API Response Time: Under 500ms"
+  Future<void> _loadPortfolioData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
     try {
-      // Load all stocks and take first 12 as user's stocks
-      final allStocks = await StockDataService.getAllStocks();
+      print('Loading user portfolio from session...');
+
+      // Get portfolio from session manager (synchronous operation)
+      final portfolioStocks = _sessionManager.getPortfolio();
+
+      if (portfolioStocks.isEmpty) {
+        setState(() {
+          _portfolioStocks = [];
+          _isLoading = false;
+        });
+        print('Portfolio is empty');
+        return;
+      }
+
+      // Fetch current data for all symbols (quotes and company profiles)
+      Map<String, Map<String, dynamic>> stockData = {};
+      Map<String, double> currentPrices = {};
+
+      for (final stock in portfolioStocks) {
+        try {
+          // Get quote and basic company profile
+          final quote = await FinnhubService.getQuote(stock.symbol);
+          final profile = await FinnhubService.getCompanyProfile(stock.symbol);
+
+          stockData[stock.symbol] = {'quote': quote, 'profile': profile};
+
+          if (quote != null && quote['c'] != null) {
+            currentPrices[stock.symbol] = quote['c'].toDouble();
+          }
+        } catch (e) {
+          print('Error fetching data for ${stock.symbol}: $e');
+        }
+      }
+
       setState(() {
-        _userStocks = allStocks.take(12).toList();
+        _portfolioStocks = portfolioStocks;
+        _currentPrices = currentPrices;
+        _stockData = stockData;
         _isLoading = false;
       });
+
+      print('Portfolio loaded: ${_portfolioStocks.length} stocks');
     } catch (e) {
       setState(() {
         _isLoading = false;
+        _errorMessage = 'Error loading portfolio: ${e.toString()}';
       });
+      print('Error loading portfolio: $e');
     }
   }
 
-  void _toggleRecentlySort() {
-    setState(() {
-      _isRecentlyAscending = !_isRecentlyAscending;
-      // Sort stocks by some criteria (using current price as proxy)
-      _userStocks.sort(
-        (a, b) => _isRecentlyAscending
-            ? a.currentPrice.compareTo(b.currentPrice)
-            : b.currentPrice.compareTo(a.currentPrice),
-      );
-    });
+  /// Calculate profit/loss for a stock
+  double _calculateProfitLoss(PortfolioStock stock) {
+    final currentPrice = _currentPrices[stock.symbol] ?? 0.0;
+    return stock.getProfitLoss(currentPrice);
+  }
+
+  /// Calculate profit/loss percentage for a stock
+  double _calculateProfitLossPercent(PortfolioStock stock) {
+    final currentPrice = _currentPrices[stock.symbol] ?? 0.0;
+    return stock.getProfitLossPercentage(currentPrice);
+  }
+
+  /// Calculate total portfolio value
+  double _calculateTotalValue() {
+    double total = 0.0;
+    for (final stock in _portfolioStocks) {
+      final currentPrice = _currentPrices[stock.symbol] ?? 0.0;
+      total += stock.getTotalValue(currentPrice);
+    }
+    return total;
+  }
+
+  /// Calculate total cost basis
+  double _calculateTotalCost() {
+    double total = 0.0;
+    for (final stock in _portfolioStocks) {
+      total += stock.quantity * stock.averagePurchasePrice;
+    }
+    return total;
   }
 
   @override
@@ -55,219 +131,277 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.getBG(brightness),
-      appBar: AppBar(
-        backgroundColor: AppColors.getBG(brightness),
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: AppColors.getText(brightness),
-            size: 24,
-          ),
-          onPressed: () => Navigator.pop(context),
+      appBar: _buildAppBar(brightness),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+          ? _buildErrorWidget(brightness)
+          : _portfolioStocks.isEmpty
+          ? _buildEmptyState(brightness)
+          : _buildPortfolioContent(brightness),
+    );
+  }
+
+  /// Build app bar
+  PreferredSizeWidget _buildAppBar(Brightness brightness) {
+    return AppBar(
+      backgroundColor: AppColors.getBG(brightness),
+      elevation: 0,
+      leading: IconButton(
+        icon: Icon(
+          Icons.arrow_back,
+          color: AppColors.getText(brightness),
+          size: 24,
         ),
-        title: Row(
-          children: [
-            Text(
-              'My stocks',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w600,
-                color: AppColors.getText(brightness),
-              ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: Row(
+        children: [
+          Text(
+            'My stocks',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w600,
+              color: AppColors.getText(brightness),
             ),
-            Spacer(),
-            Container(
-              width: 124,
+          ),
+          const Spacer(),
+          // Search container - clickable to navigate to search screen
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => StockSearchScreen()),
+              );
+            },
+            child: Container(
+              width: 155,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.getBG(brightness),
+                color: Colors.transparent,
                 border: Border.all(
-                  color: AppColors.getText(brightness),
-                  width: 2,
+                  color: AppColors.getText(brightness).withOpacity(0.7),
+                  width: 1,
                 ),
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        'Search...',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.getText(brightness).withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                  ),
                   Padding(
-                    padding: EdgeInsets.only(right: 8, top: 8, bottom: 8),
+                    padding: EdgeInsets.only(right: 8),
                     child: Icon(
                       Icons.search,
-                      color: AppColors.getText(brightness),
+                      color: AppColors.getText(brightness).withOpacity(0.5),
                       size: 20,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          // Header section with count and recently filter
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 33, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_userStocks.length} Companies',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.getText(brightness),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _toggleRecentlySort,
-                  child: Row(
-                    children: [
-                      Text(
-                        'Recently',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.getText(brightness),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Column(
-                        children: [
-                          Icon(
-                            Icons.keyboard_arrow_up,
-                            size: 14,
-                            color: _isRecentlyAscending
-                                ? AppColors.getText(brightness)
-                                : AppColors.getText(
-                                    brightness,
-                                  ).withOpacity(0.5),
-                          ),
-                          Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 14,
-                            color: !_isRecentlyAscending
-                                ? AppColors.getText(brightness)
-                                : AppColors.getText(
-                                    brightness,
-                                  ).withOpacity(0.5),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Stock list
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 26),
-                    itemCount: _userStocks.length,
-                    itemBuilder: (context, index) {
-                      final stock = _userStocks[index];
-                      return _buildStockItem(stock, brightness);
-                    },
-                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStockItem(Stock stock, Brightness brightness) {
-    final changePercent = stock.calculateChangePercent();
-    final isPositive = changePercent >= 0;
-
-    return Container(
-      height: 82,
-      margin: EdgeInsets.only(bottom: 0),
-      child: Row(
+  /// Build error widget
+  Widget _buildErrorWidget(Brightness brightness) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Stock icon
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: _getStockColor(stock.symbol),
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
-            ),
-            child: Center(child: _getStockIcon(stock.symbol)),
+          Icon(
+            Icons.error_outline,
+            size: 48,
+            color: AppColors.getText(brightness).withOpacity(0.5),
           ),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage,
+            style: TextStyle(
+              color: AppColors.getText(brightness).withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadPortfolioData,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
 
-          SizedBox(width: 20),
-
-          // Stock info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  stock.symbol,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.getText(brightness),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  stock.company,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.getText(brightness),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+  /// Build empty state
+  Widget _buildEmptyState(Brightness brightness) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.trending_up,
+            size: 64,
+            color: AppColors.getText(brightness).withOpacity(0.3),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Your portfolio is empty',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+              color: AppColors.getText(brightness),
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Start investing by searching for stocks',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.getText(brightness).withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => StockSearchScreen()),
+              );
+            },
+            icon: const Icon(Icons.search),
+            label: const Text('Search Stocks'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-          // Price and percentage
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
+  /// Build main portfolio content
+  Widget _buildPortfolioContent(Brightness brightness) {
+    final totalValue = _calculateTotalValue();
+    final totalCost = _calculateTotalCost();
+    final totalProfitLoss = totalValue - totalCost;
+    final totalProfitLossPercent = totalCost > 0
+        ? (totalProfitLoss / totalCost) * 100
+        : 0.0;
+
+    return Column(
+      children: [
+        // Portfolio summary
+        _buildPortfolioSummary(
+          brightness,
+          totalValue,
+          totalProfitLoss,
+          totalProfitLossPercent,
+        ),
+
+        // Header section with company count
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 33, vertical: 16),
+          child: Row(
             children: [
               Text(
-                stock.currentPrice.toStringAsFixed(2),
+                '${_portfolioStocks.length} Companies',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.getText(brightness),
                 ),
               ),
-              SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isPositive ? Icons.trending_up : Icons.trending_down,
-                    size: 12,
-                    color: isPositive
-                        ? AppColors.getGreen(brightness)
-                        : AppColors.getRed(brightness),
-                  ),
-                  SizedBox(width: 2),
-                  Text(
-                    '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: isPositive
-                          ? AppColors.getGreen(brightness)
-                          : AppColors.getRed(brightness),
-                    ),
-                  ),
-                ],
+            ],
+          ),
+        ),
+
+        // Portfolio holdings list - big slider design
+        Container(
+          height: 150, // Same height as trending stocks
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _portfolioStocks.length,
+            itemBuilder: (context, index) {
+              final stock = _portfolioStocks[index];
+              return _buildBigPortfolioCard(stock, brightness, index);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build portfolio summary card
+  Widget _buildPortfolioSummary(
+    Brightness brightness,
+    double totalValue,
+    double totalProfitLoss,
+    double totalProfitLossPercent,
+  ) {
+    final isPositive = totalProfitLoss >= 0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.getBG(brightness),
+        border: Border.all(
+          color: AppColors.getText(brightness).withOpacity(0.2),
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Portfolio Value',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.getText(brightness).withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '\$${totalValue.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.getText(brightness),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                isPositive ? Icons.trending_up : Icons.trending_down,
+                size: 20,
+                color: isPositive ? Colors.green : Colors.red,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${isPositive ? '+' : ''}\$${totalProfitLoss.toStringAsFixed(2)} (${totalProfitLossPercent.toStringAsFixed(2)}%)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: isPositive ? Colors.green : Colors.red,
+                ),
               ),
             ],
           ),
@@ -276,6 +410,92 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
     );
   }
 
+  /// Build big portfolio card matching trending stocks design
+  Widget _buildBigPortfolioCard(
+    PortfolioStock stock,
+    Brightness brightness,
+    int index,
+  ) {
+    final currentPrice = _currentPrices[stock.symbol] ?? 0.0;
+    final profitLossPercent = _calculateProfitLossPercent(stock);
+    final isPositive = profitLossPercent >= 0;
+    final totalValue = currentPrice * stock.quantity;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StockDetailScreen(symbol: stock.symbol),
+          ),
+        );
+      },
+      child: Container(
+        width: 140, // Same width as trending stocks
+        margin: EdgeInsets.only(left: index == 0 ? 10 : 6, right: 6),
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.getGreyBG(brightness),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Company logo (centered at top)
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _getStockColor(stock.symbol),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(child: _getStockIcon(stock.symbol)),
+            ),
+            const SizedBox(height: 8),
+
+            // Symbol (centered)
+            Text(
+              stock.symbol,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.getText(brightness),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+
+            // Current price (centered)
+            Text(
+              currentPrice > 0 ? '\$${currentPrice.toStringAsFixed(2)}' : 'N/A',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.getText(brightness),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+
+            // Percentage change (centered)
+            Text(
+              '${isPositive ? '+' : ''}${profitLossPercent.toStringAsFixed(2)}%',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isPositive
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFFDC2626),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Gets the brand color for different stocks
   Color _getStockColor(String symbol) {
     switch (symbol) {
       case 'TSLA':
@@ -295,81 +515,123 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
       case 'AMZN':
         return Color(0xFFFF9900); // Amazon orange
       default:
-        return Colors.grey[600]!;
+        final colors = [
+          Colors.blue,
+          Colors.green,
+          Colors.orange,
+          Colors.purple,
+          Colors.red,
+          Colors.teal,
+          Colors.indigo,
+          Colors.pink,
+        ];
+        return colors[symbol.hashCode % colors.length];
     }
   }
 
+  /// Gets the appropriate icon for different stocks
   Widget _getStockIcon(String symbol) {
     switch (symbol) {
       case 'TSLA':
-        return Text(
-          'T',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(8),
+          child: Text(
+            'T',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontFamily: 'System',
+            ),
           ),
         );
       case 'AAPL':
-        return Icon(Icons.apple, color: Colors.white, size: 20);
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Icon(Icons.apple, color: Colors.white, size: 28),
+        );
       case 'NVDA':
-        return Text(
-          'N',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            fontStyle: FontStyle.italic,
+        return Container(
+          padding: EdgeInsets.all(8),
+          child: Text(
+            'N',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         );
       case 'AMD':
-        return Text(
-          'AMD',
-          style: TextStyle(
-            fontSize: 8,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: 0.5,
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Text(
+            'AMD',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
           ),
         );
       case 'META':
-        return Text(
-          'f',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            fontStyle: FontStyle.italic,
+        return Container(
+          padding: EdgeInsets.all(8),
+          child: Transform.rotate(
+            angle: 0.1,
+            child: Text(
+              'f',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
         );
       case 'GOOGL':
-        return Text(
-          'G',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(8),
+          child: Text(
+            'G',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
           ),
         );
       case 'MSFT':
-        return Icon(Icons.window, color: Colors.white, size: 18);
+        return Container(
+          padding: EdgeInsets.all(6),
+          child: Icon(Icons.window, color: Colors.white, size: 26),
+        );
       case 'AMZN':
-        return Text(
-          'a',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            fontStyle: FontStyle.italic,
+        return Container(
+          padding: EdgeInsets.all(8),
+          child: Text(
+            'a',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         );
       default:
-        return Text(
-          symbol.substring(0, 1),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        return Container(
+          padding: EdgeInsets.all(8),
+          child: Text(
+            symbol.substring(0, 1),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         );
     }

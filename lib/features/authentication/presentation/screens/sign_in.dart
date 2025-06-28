@@ -68,7 +68,7 @@ class _SignInScreenstate extends State<SignInScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Welcome back, ${user.name}!'),
+            content: Text('Welcome back, ${user.username}!'),
             backgroundColor: Colors.green,
           ),
         );

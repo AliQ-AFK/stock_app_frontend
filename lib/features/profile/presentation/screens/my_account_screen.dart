@@ -29,7 +29,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   }
 
   void _checkProStatus() async {
-    bool proStatus = await PaymentService.getProStatus(widget.user.userID);
+    bool proStatus = await PaymentService.getProStatus(widget.user.userId);
     setState(() {
       _isPro = proStatus;
       _isLoading = false;
@@ -138,27 +138,21 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
 
           SizedBox(height: 16),
 
-          // User Name with Pro Badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                widget.user.name,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.getText(brightness),
-                ),
-              ),
-              if (_isPro) ...[SizedBox(width: 8), ProBanner(text: 'PRO')],
-            ],
+          // User Name
+          Text(
+            widget.user.username,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+              color: AppColors.getText(brightness),
+            ),
           ),
 
           SizedBox(height: 8),
 
-          // Email and Phone
+          // Email
           Text(
-            '${widget.user.email} | ${widget.user.phoneNumber}',
+            widget.user.email,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -383,13 +377,15 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Name: ${widget.user.name}'),
+            Text('User ID: ${widget.user.userId}'),
+            SizedBox(height: 8),
+            Text('Username: ${widget.user.username}'),
             SizedBox(height: 8),
             Text('Email: ${widget.user.email}'),
             SizedBox(height: 8),
-            Text('Phone: ${widget.user.phoneNumber}'),
-            SizedBox(height: 8),
-            Text('Username: ${widget.user.username}'),
+            Text(
+              'Account Created: ${widget.user.createdAt.toLocal().toString().split(' ')[0]}',
+            ),
           ],
         ),
         actions: [

@@ -31,7 +31,10 @@ class AppColors {
   /// Background color for light theme - used for main app background
   static const Color lightBG = Color(0xFFFFFDFD);
 
-  /// Grey background color for light theme - used for secondary backgrounds
+  /// Unified widget background color for light theme - used for all widget backgrounds
+  static const Color lightWidgetBG = Color(0xFFE8E8E8);
+
+  /// Grey background color for light theme - used for secondary backgrounds (legacy)
   static const Color lightGreyBG = Color(0xFFE8E8E8);
 
   /// Green color for light theme - used for success states and positive indicators
@@ -43,8 +46,8 @@ class AppColors {
   /// Stocks slider color for light theme - used for stock-related UI elements
   static const Color lightStocksSlider = Color(0xFF1C1C1C);
 
-  /// Big elements color for light theme - used for prominent UI components
-  static const Color lightBigElements = Color(0xFFD9D9D9);
+  /// Big elements color for light theme - now unified with widget background
+  static const Color lightBigElements = Color(0xFFE8E8E8);
 
   /// Dashboard and portfolio background color for light theme
   static const Color lightBGDashPort = Color(0xFFA4A4A4);
@@ -60,7 +63,10 @@ class AppColors {
   /// Background color for dark theme - used for main app background
   static const Color darkBG = Color(0xFF121212);
 
-  /// Grey background color for dark theme - used for secondary backgrounds
+  /// Unified widget background color for dark theme - used for all widget backgrounds
+  static const Color darkWidgetBG = Color(0xFF2C2C2C);
+
+  /// Grey background color for dark theme - used for secondary backgrounds (legacy)
   static const Color darkGreyBG = Color(0xFF2C2C2C);
 
   /// Green color for dark theme - used for success states and positive indicators
@@ -72,8 +78,8 @@ class AppColors {
   /// Stocks slider color for dark theme - used for stock-related UI elements
   static const Color darkStocksSlider = Color(0xFF424242);
 
-  /// Big elements color for dark theme - used for prominent UI components
-  static const Color darkBigElements = Color(0xFF3C3C3C);
+  /// Big elements color for dark theme - now unified with widget background
+  static const Color darkBigElements = Color(0xFF2C2C2C);
 
   /// Dashboard and portfolio background color for dark theme
   static const Color darkBGDashPort = Color(0xFF1E1E1E);
@@ -140,6 +146,14 @@ class AppColors {
   static Color getBGDashPort(Brightness brightness) => getColor(
     light: lightBGDashPort,
     dark: darkBGDashPort,
+    brightness: brightness,
+  );
+
+  /// Returns unified widget background color based on theme brightness
+  /// Use this for all widget backgrounds to ensure consistency
+  static Color getWidgetBG(Brightness brightness) => getColor(
+    light: lightWidgetBG,
+    dark: darkWidgetBG,
     brightness: brightness,
   );
 }

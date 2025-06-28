@@ -27,7 +27,7 @@ class _AlphaProstate extends State<AlphaPro> {
 
   void _checkProStatus() async {
     // Use a default user ID if no user is provided (fallback)
-    String userID = widget.user?.userID ?? 'default_user';
+    String userID = widget.user?.userId ?? 'default_user';
     bool proStatus = await PaymentService.getProStatus(userID);
     setState(() {
       _isPro = proStatus;
@@ -101,7 +101,7 @@ class _AlphaProstate extends State<AlphaPro> {
                 margin: const EdgeInsets.only(top: 15.0),
                 onPaymentResult: (result) {
                   Navigator.pop(context); // Close payment dialog first
-                  String userID = widget.user?.userID ?? 'default_user';
+                  String userID = widget.user?.userId ?? 'default_user';
                   PaymentService.onPaymentResult(
                     context,
                     result,
@@ -202,7 +202,7 @@ class _AlphaProstate extends State<AlphaPro> {
   void _cancelMembership() async {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final brightness = themeProvider.brightness;
-    String userID = widget.user?.userID ?? 'default_user';
+    String userID = widget.user?.userId ?? 'default_user';
 
     // Show processing dialog
     showDialog(
@@ -316,7 +316,11 @@ class _AlphaProstate extends State<AlphaPro> {
                   if (_isPro) ...[
                     // Pro User Content
                     Container(
-                      padding: EdgeInsets.all(20),
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 24,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.getGreen(brightness).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -557,11 +561,10 @@ class _AlphaProstate extends State<AlphaPro> {
                               child: Text('Cancel Membership'),
                             ),
                           ),
-
                         ],
                       ),
                     ),
-                    SizedBox(height: 25,)
+                    SizedBox(height: 25),
                   ],
                 ],
               ),

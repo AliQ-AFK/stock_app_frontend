@@ -134,20 +134,12 @@ class _SignUp2state extends State<SignUp2> {
     });
 
     try {
-      // Create user object
-      final newUser = User(
-        userID: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameController.text,
-        email: widget.email,
+      // Register user using UserService with simplified parameters
+      final newUser = await UserService.register(
         username: widget.email.split('@')[0], // Use email prefix as username
+        email: widget.email,
         password: widget.password,
-        phoneNumber: '$selectedCountryCode ${_phoneController.text}',
-        createdAt: DateTime.now(),
-        lastLogin: DateTime.now(),
       );
-
-      // Register user using UserService
-      await UserService.register(newUser);
 
       // Navigate to main screen (portfolio)
       Navigator.pushAndRemoveUntil(
@@ -159,7 +151,7 @@ class _SignUp2state extends State<SignUp2> {
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Welcome to AlphaWave, ${newUser.name}!'),
+          content: Text('Welcome to AlphaWave, ${newUser.username}!'),
           backgroundColor: AppColors.getGreen(brightness),
         ),
       );

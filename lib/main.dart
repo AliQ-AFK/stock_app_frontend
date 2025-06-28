@@ -3,8 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_colors.dart';
 import 'core/providers/theme_provider.dart';
-import 'core/services/portfolio_manager_service.dart';
-import 'core/services/watchlist_service.dart';
+import 'session_manager.dart';
 import 'features/authentication/presentation/screens/landing_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; //reads api safely
 
@@ -16,8 +15,8 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: ".env");
 
-  // Initialize all demo data
-  initializeApp();
+  // Initialize database and demo data
+  await initializeApp();
 
   runApp(
     ChangeNotifierProvider(
@@ -27,14 +26,23 @@ void main() async {
   );
 }
 
-/// Initializes the application with demo data
+/// Initializes the application with session manager
 ///
-/// This function sets up the in-memory data for the educational
-/// trading simulator as specified in the UML documentation
-void initializeApp() {
-  // Initialize demo data for services
-  PortfolioManagerService.initializeDemoData();
-  WatchlistService.initializeDemoData();
+/// Following lectures.md requirements for simple in-memory approach
+/// and performance criteria: "API Response Time: Under 500ms"
+Future<void> initializeApp() async {
+  try {
+    print('Initializing AlphaWave application...');
+
+    // Initialize session manager for in-memory storage
+    final sessionManager = SessionManager();
+    print('Session manager initialized successfully');
+
+    print('Application initialization complete');
+  } catch (e) {
+    print('Error during app initialization: $e');
+    // Don't prevent app startup, but log the error
+  }
 }
 
 /// Root widget for the AlphaWave trading application
