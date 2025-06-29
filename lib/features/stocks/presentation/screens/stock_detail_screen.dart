@@ -532,9 +532,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         IconButton(
           onPressed: _toggleWatchlist,
           icon: Icon(
-            _isInWatchlist ? Icons.star : Icons.star_border,
+            _isInWatchlist ? Icons.favorite : Icons.favorite_border,
             color: _isInWatchlist
-                ? Colors.amber
+                ? AppColors.getText(brightness)
                 : AppColors.getText(brightness),
           ),
         ),

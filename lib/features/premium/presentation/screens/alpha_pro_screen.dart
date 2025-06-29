@@ -339,7 +339,7 @@ class _AlphaProstate extends State<AlphaPro> {
                           Text(
                             'You are a Pro Member!',
                             style: TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: AppColors.getGreen(brightness),
                             ),

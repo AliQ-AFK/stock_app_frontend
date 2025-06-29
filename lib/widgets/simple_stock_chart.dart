@@ -1,12 +1,24 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 
+/// A helper class to hold the calculated values for an axis.
+class _ChartAxisValues {
+  final double min;
+  final double max;
+  final double interval;
+
+  _ChartAxisValues({required this.min, required this.max, required this.interval});
+}
+
 /// Simple Stock Chart Widget
 ///
-/// Following Lectures.md principles: "keep it simple" - clean visual design
-/// Dynamic color based on stock performance (green up, red down)
+/// This definitive version uses a robust, mathematically-sound algorithm
+/// to calculate "nice" intervals and boundaries for the Y-axis, guaranteeing
+/// that labels are always spaced out and human-readable, solving the overlap
+/// issue for all possible price ranges.
 class SimpleStockChart extends StatelessWidget {
   final List<double> dataPoints;
   final List<int>? timestamps;
@@ -23,65 +35,52 @@ class SimpleStockChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Following Lectures.md: "keep it simple" - minimal but visible chart styling
+    if (dataPoints.length < 2) {
+      return Center(child: Text("Not enough data for chart"));
+    }
+
+    final yAxisValues = _calculateYAxisValues();
+
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.only(right: 16, top: 16, bottom: 4),
       child: LineChart(
         LineChartData(
-          // Hide grids and borders for clean look
+          backgroundColor: Colors.transparent,
           gridData: FlGridData(show: false),
           borderData: FlBorderData(show: false),
 
-          // Show Y-axis with dollar values and X-axis with dates
           titlesData: FlTitlesData(
             show: true,
             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: timestamps != null && timestamps!.isNotEmpty,
-                interval: _getDateInterval(),
-                reservedSize: 30,
-                getTitlesWidget: (value, meta) => _buildDateLabel(value),
-              ),
-            ),
+
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                interval: 1000, // Large interval to prevent extra labels
-                reservedSize: 45,
-                getTitlesWidget: (value, meta) {
-                  final targetLabels = _getFiveEqualLabels();
-                  final roundedValue = value.round();
+                reservedSize: 50,
+                interval: yAxisValues.interval,
+                getTitlesWidget: leftTitleWidgets,
+              ),
+            ),
 
-                  // Only show if it matches one of our 5 target labels
-                  if (targetLabels.contains(roundedValue)) {
-                    return Text(
-                      '\$${roundedValue}',
-                      style: TextStyle(
-                        color: AppColors.getText(brightness).withOpacity(0.7),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink(); // Hide unwanted labels
-                },
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 30,
+                interval: _getBottomTitleInterval(),
+                getTitlesWidget: bottomTitleWidgets,
               ),
             ),
           ),
 
-          // Create line chart data
           lineBarsData: [
             LineChartBarData(
               spots: _createSpots(),
               isCurved: true,
               color: lineColor,
-              barWidth: 3, // Increased for better visibility
+              barWidth: 3,
               isStrokeCapRound: true,
               dotData: FlDotData(show: false),
-
-              // Add area below the line with more opacity for better visibility
               belowBarData: BarAreaData(
                 show: true,
                 color: lineColor.withOpacity(0.2),
@@ -89,86 +88,92 @@ class SimpleStockChart extends StatelessWidget {
             ),
           ],
 
-          // Clean appearance with proper padding - prevent overlapping labels
-          minX: 0,
-          maxX: (dataPoints.length - 1).toDouble(),
-          minY: minY, // Use getter for consistency
-          maxY: maxY, // Use getter for consistency
+          minY: yAxisValues.min,
+          maxY: yAxisValues.max,
+          minX: -0.2,
+          maxX: (dataPoints.length - 1).toDouble() + 0.2,
         ),
       ),
     );
   }
 
-  /// Convert price data to chart spots
+  Widget leftTitleWidgets(double value, TitleMeta meta) {
+    final style = TextStyle(
+      color: AppColors.getText(brightness).withOpacity(0.7),
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+    );
+    String text = value.truncateToDouble() == value
+        ? value.toInt().toString()
+        : value.toStringAsFixed(1);
+    return Text('\$$text', style: style, textAlign: TextAlign.center);
+  }
+
+  Widget bottomTitleWidgets(double value, TitleMeta meta) {
+    if (value.floor() != value) {
+      return const SizedBox.shrink();
+    }
+    final style = TextStyle(
+      color: AppColors.getText(brightness).withOpacity(0.7),
+      fontSize: 10,
+      fontWeight: FontWeight.w500,
+    );
+    if (timestamps == null || timestamps!.isEmpty) return Text('', style: style);
+    final index = value.toInt();
+    if (index >= 0 && index < timestamps!.length) {
+      final date = DateTime.fromMillisecondsSinceEpoch(timestamps![index] * 1000);
+      return Text(DateFormat('MMM d').format(date), style: style);
+    }
+    return Text('', style: style);
+  }
+
+  double _getBottomTitleInterval() {
+    if (dataPoints.length <= 10) return 1;
+    return (dataPoints.length / 4).floorToDouble();
+  }
+
+  _ChartAxisValues _calculateYAxisValues() {
+    final minPrice = dataPoints.reduce(min);
+    final maxPrice = dataPoints.reduce(max);
+
+    if (minPrice == maxPrice) {
+      return _ChartAxisValues(
+        min: minPrice - 5.0,
+        max: maxPrice + 5.0,
+        interval: 2.5,
+      );
+    }
+
+    final range = maxPrice - minPrice;
+    int targetTickCount = 5;
+    double tempInterval = range / (targetTickCount - 1);
+
+    final magnitude = pow(10, (log(tempInterval) / log(10)).floor()).toDouble();
+    final residual = tempInterval / magnitude;
+
+    double niceInterval;
+    // ================ THE SYNTAX FIX IS HERE ================
+    // Changed all the integer literals (1, 2, 5, 10) to doubles (1.0, 2.0, etc.)
+    if (residual < 1.5) {
+      niceInterval = 1.0 * magnitude;
+    } else if (residual < 3) {
+      niceInterval = 2.0 * magnitude;
+    } else if (residual < 7) {
+      niceInterval = 5.0 * magnitude;
+    } else {
+      niceInterval = 10.0 * magnitude;
+    }
+    // ========================================================
+
+    double niceMin = (minPrice / niceInterval).floor() * niceInterval;
+    double niceMax = (maxPrice / niceInterval).ceil() * niceInterval;
+
+    return _ChartAxisValues(min: niceMin, max: niceMax, interval: niceInterval);
+  }
+
   List<FlSpot> _createSpots() {
     return dataPoints.asMap().entries.map((entry) {
       return FlSpot(entry.key.toDouble(), entry.value);
     }).toList();
-  }
-
-  /// Get minimum price for chart scaling
-  double _getMinPrice() {
-    if (dataPoints.isEmpty) return 0;
-    return dataPoints.reduce((a, b) => a < b ? a : b);
-  }
-
-  /// Get maximum price for chart scaling
-  double _getMaxPrice() {
-    if (dataPoints.isEmpty) return 100;
-    return dataPoints.reduce((a, b) => a > b ? a : b);
-  }
-
-  /// Get chart minimum Y value
-  double get minY => _getMinPrice() * 0.95;
-
-  /// Get chart maximum Y value
-  double get maxY => _getMaxPrice() * 1.05;
-
-  /// Get exactly 5 equally spaced labels
-  List<int> _getFiveEqualLabels() {
-    final range = maxY - minY;
-    final step = range / 4; // 4 steps = 5 labels
-
-    return [
-      minY.round(),
-      (minY + step).round(),
-      (minY + 2 * step).round(),
-      (minY + 3 * step).round(),
-      maxY.round(),
-    ];
-  }
-
-  /// Calculate smart interval for date labels to prevent overlap
-  /// Following Lectures.md: "keep it simple" - basic interval calculation
-  double _getDateInterval() {
-    if (dataPoints.length <= 5) return 1.0;
-    if (dataPoints.length <= 15) return 3.0;
-    return (dataPoints.length / 4).ceilToDouble(); // Show about 4-5 date labels
-  }
-
-  /// Build date label widget for X-axis
-  /// Following Lectures.md: "keep it simple" - clean date formatting
-  Widget _buildDateLabel(double value) {
-    if (timestamps == null || timestamps!.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final index = value.toInt();
-    if (index < 0 || index >= timestamps!.length) {
-      return const SizedBox.shrink();
-    }
-
-    final timestamp = timestamps![index];
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    final formattedDate = DateFormat('MMM d').format(date);
-
-    return Text(
-      formattedDate,
-      style: TextStyle(
-        color: AppColors.getText(brightness).withOpacity(0.7),
-        fontSize: 10,
-        fontWeight: FontWeight.w500,
-      ),
-    );
   }
 }

@@ -34,7 +34,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   bool _isPro = false;
   bool _isLoading = false;
   List<Stock> _portfolioStocks = [];
-  List<Stock> _watchlistStocks = [];
+
 
   // Hardcoded placeholder values as specified in requirements
   static const double _placeholderStockPrice =
@@ -129,7 +129,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
       setState(() {
         _portfolioStocks = portfolioStocks;
-        _watchlistStocks = watchlistStocks;
         _isLoading = false;
       });
     } catch (e) {
@@ -154,11 +153,29 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           children: [
             _buildTotalPortfolioValueCard(brightness),
             const SizedBox(height: 32),
-            _buildMyStocksSection(brightness),
+            _buildGraphImage(),
             const SizedBox(height: 32),
-            _buildMyWatchlistSection(brightness),
-            const SizedBox(height: 100), // Bottom padding for navigation
+            _buildMyStocksSection(brightness),
+            const SizedBox(height: 100),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGraphImage() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
+    final isLightMode = brightness == Brightness.light;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: ClipRRect(
+        child: Image.asset(
+          isLightMode
+              ? 'assets/images/portgL.png'
+              : 'assets/images/portgD.png', //
+          fit: BoxFit.cover,
+          width: double.infinity,
         ),
       ),
     );
@@ -456,30 +473,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     );
   }
 
-  /// Build My Watchlist Section exactly matching Dashboard design
-  Widget _buildMyWatchlistSection(Brightness brightness) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          // Section header with View all button
-          SectionHeader(
-            title: 'My Watchlist',
-            onViewAllPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => WatchlistScreen()),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          // Horizontal stocks list with custom empty state
-          _buildStocksHorizontalList(_watchlistStocks, 'watchlist'),
-        ],
-      ),
-    );
-  }
-
   /// Builds horizontal scrollable list of stock cards with custom empty states
   Widget _buildStocksHorizontalList(List<Stock> stocks, String type) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -493,7 +486,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                type == 'stocks' ? Icons.trending_up : Icons.visibility,
+                Icons.trending_up,
                 size: 32,
                 color: AppColors.getText(brightness).withOpacity(0.3),
               ),
