@@ -71,7 +71,7 @@ class _MainScreenState extends State<MainScreen> {
           user: widget.user,
         ); // Use the proper Figma-designed Portfolio screen
       case 2:
-        return NewsScreen();
+        return NewsScreen(user: widget.user);
       case 3:
         return MyAccountScreen(user: widget.user);
       default:

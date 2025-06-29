@@ -3,17 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 import 'package:stock_app_frontend/core/services/finnhub_service.dart';
 import 'package:stock_app_frontend/session_manager.dart';
 import 'package:stock_app_frontend/features/stocks/presentation/screens/buy_stock_screen.dart';
+import 'package:stock_app_frontend/features/stocks/presentation/screens/sell_stock_screen.dart';
 import 'package:stock_app_frontend/widgets/simple_stock_chart.dart';
+import 'package:stock_app_frontend/core/models/news_article.dart';
 
-/// Stock Detail Screen with live Finnhub API data
+/// Stock Detail Screen with tabbed layout - Overview and News
 ///
 /// Following Lectures.md principles: "keep it simple" and "core features first"
-/// Clean, step-by-step implementation as requested
+/// Clean, step-by-step implementation with DefaultTabController
 class StockDetailScreen extends StatefulWidget {
   final String symbol;
   final String? companyName;
@@ -26,19 +29,19 @@ class StockDetailScreen extends StatefulWidget {
 }
 
 class _StockDetailScreenState extends State<StockDetailScreen> {
-  // Step 1: Initial Setup - State variables as requested
+  // State variables for stock data
   bool isLoading = true;
   Map<String, dynamic>? quoteData;
   Map<String, dynamic>? profileData;
   Map<String, dynamic>? financialData;
 
   // Chart data variables
-  List<double>? chartDataPoints; // To hold the prices for the chart
-  List<int>? chartTimestamps; // To hold the timestamps for the chart
-  bool isChartLoading = true; // To show a loading indicator
-  Color chartColor = Colors.grey; // A default color before data is loaded
+  List<double>? chartDataPoints;
+  List<int>? chartTimestamps;
+  bool isChartLoading = true;
+  Color chartColor = Colors.grey;
 
-  // Simple time range state - following Lectures.md "keep it simple"
+  // Simple time range state
   int _selectedDays = 90; // Default to 90 days
 
   // Watchlist functionality
@@ -51,47 +54,38 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Simplified initialization - following Lectures.md "keep it simple"
     _fetchStockDetails();
     _checkWatchlistStatus();
-    _updateChart(_selectedDays); // Load default chart
+    _updateChart(_selectedDays);
   }
 
-  /// Step 1: Create _fetchStockDetails function using Future.wait
-  /// Following Lectures.md performance criteria: "API Response Time: Under 500ms"
+  /// Fetch stock details using Future.wait for performance
   Future<void> _fetchStockDetails() async {
     try {
       print('Fetching stock details for ${widget.symbol}...');
 
-      // Calculate timestamps for past 1 week (more likely to have data)
       final now = DateTime.now();
       final oneWeekAgo = now.subtract(Duration(days: 7));
       final fromTimestamp = oneWeekAgo.millisecondsSinceEpoch ~/ 1000;
       final toTimestamp = now.millisecondsSinceEpoch ~/ 1000;
 
-      // Step 1: Use Future.wait to call four Finnhub methods simultaneously
       final results = await Future.wait([
-        FinnhubService.getStockQuote(
-          widget.symbol,
-        ), // For current price, day range, previous close
-        FinnhubService.getCompanyProfile(
-          widget.symbol,
-        ), // For company name, market cap
-        FinnhubService.getBasicFinancials(widget.symbol), // For P/E ratio
+        FinnhubService.getStockQuote(widget.symbol),
+        FinnhubService.getCompanyProfile(widget.symbol),
+        FinnhubService.getBasicFinancials(widget.symbol),
         FinnhubService.getStockCandles(
           symbol: widget.symbol,
-          resolution: '60', // Hourly data (more likely to be available)
+          resolution: '60',
           from: fromTimestamp,
           to: toTimestamp,
-        ), // For chart data
+        ),
       ]);
 
-      // Step 1: Store results in state variables
+      // Company profile data from Finnhub API (free tier)
+
       final candleData = results[3];
 
-      print('Debug: Raw candle data for ${widget.symbol}: $candleData');
-
-      // Extract closing prices and timestamps from candle data
+      // Process chart data
       List<double>? closingPrices;
       List<int>? timestamps;
       Color newChartColor = Colors.grey;
@@ -112,47 +106,28 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               .map((timestamp) => (timestamp as num).toInt())
               .toList();
 
-          print(
-            'Debug: Successfully extracted ${closingPrices.length} real price points and ${timestamps.length} timestamps for ${widget.symbol}',
-          );
-
-          // Implement color logic: compare first and last price
           if (closingPrices.isNotEmpty) {
             final firstPrice = closingPrices.first;
             final lastPrice = closingPrices.last;
 
-            print(
-              'Debug: ${widget.symbol} - First: \$${firstPrice.toStringAsFixed(2)}, Last: \$${lastPrice.toStringAsFixed(2)}',
-            );
-
             if (lastPrice > firstPrice) {
               newChartColor = Colors.green[400]!;
-              print('Debug: ${widget.symbol} chart color: GREEN (up trend)');
             } else if (lastPrice < firstPrice) {
               newChartColor = Colors.red[400]!;
-              print('Debug: ${widget.symbol} chart color: RED (down trend)');
             } else {
               newChartColor = Colors.white70;
-              print('Debug: ${widget.symbol} chart color: WHITE (flat trend)');
             }
           }
         } catch (e) {
-          print('Debug: Error processing candle data for ${widget.symbol}: $e');
+          print('Error processing candle data: $e');
           closingPrices = _generateMockChartData();
           timestamps = _generateMockTimestamps();
           newChartColor = _getMockChartColor();
         }
       } else {
-        print(
-          'Debug: No valid candle data for ${widget.symbol}, using realistic mock data',
-        );
-        // Create realistic mock data specific to this symbol
         closingPrices = _generateMockChartData();
         timestamps = _generateMockTimestamps();
         newChartColor = _getMockChartColor();
-        print(
-          'Debug: Generated ${closingPrices.length} mock points and ${timestamps?.length} timestamps for ${widget.symbol}',
-        );
       }
 
       setState(() {
@@ -173,7 +148,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         isLoading = false;
         isChartLoading = false;
       });
-      // Show error to user
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error loading stock data')));
@@ -209,31 +183,27 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     _checkWatchlistStatus();
   }
 
-  /// Simple chart update method - following Lectures.md "keep it simple"
-  /// Uses appropriate resolution based on time range
+  /// Simple chart update method
   Future<void> _updateChart(int days) async {
     setState(() {
       isChartLoading = true;
     });
 
     try {
-      // Calculate timestamps and choose appropriate resolution
       final now = DateTime.now();
       final fromDate = now.subtract(Duration(days: days));
       final fromTimestamp = fromDate.millisecondsSinceEpoch ~/ 1000;
       final toTimestamp = now.millisecondsSinceEpoch ~/ 1000;
 
-      // Choose resolution based on time range - following Lectures.md "keep it simple"
       String resolution;
       if (days == 1) {
-        resolution = '60'; // 1 hour intervals for 1 day
+        resolution = '60';
       } else if (days <= 7) {
-        resolution = 'D'; // Daily for 1 week
+        resolution = 'D';
       } else {
-        resolution = 'D'; // Daily for longer periods
+        resolution = 'D';
       }
 
-      // Fetch chart data with appropriate resolution
       final candleData = await FinnhubService.getStockCandles(
         symbol: widget.symbol,
         resolution: resolution,
@@ -241,7 +211,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         to: toTimestamp,
       );
 
-      // Process chart data
       List<double>? closingPrices;
       List<int>? timestamps;
       Color newChartColor = Colors.grey;
@@ -261,7 +230,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             .map((timestamp) => (timestamp as num).toInt())
             .toList();
 
-        // Determine chart color based on trend
         if (closingPrices.isNotEmpty) {
           final firstPrice = closingPrices.first;
           final lastPrice = closingPrices.last;
@@ -275,7 +243,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           }
         }
       } else {
-        // Use mock data if API fails
         closingPrices = _generateMockChartData();
         timestamps = _generateMockTimestamps();
         newChartColor = _getMockChartColor();
@@ -287,10 +254,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         chartColor = newChartColor;
         isChartLoading = false;
       });
-
-      print(
-        'Chart updated for $days days with ${closingPrices?.length ?? 0} data points',
-      );
     } catch (e) {
       print('Error updating chart: $e');
       setState(() {
@@ -300,20 +263,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   /// Generate mock timestamps for chart X-axis
-  /// Following Lectures.md: "keep it simple" - basic timestamp generation
   List<int> _generateMockTimestamps() {
     final now = DateTime.now();
     final List<int> mockTimestamps = [];
 
     if (_selectedDays == 1) {
-      // Generate hourly timestamps for 1 day (24 hours)
       for (int i = 23; i >= 0; i--) {
         final timestamp =
             now.subtract(Duration(hours: i)).millisecondsSinceEpoch ~/ 1000;
         mockTimestamps.add(timestamp);
       }
     } else {
-      // Generate daily timestamps for longer periods
       for (int i = _selectedDays - 1; i >= 0; i--) {
         final timestamp =
             now.subtract(Duration(days: i)).millisecondsSinceEpoch ~/ 1000;
@@ -324,42 +284,28 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     return mockTimestamps;
   }
 
-  /// Generate realistic mock chart data for testing when API fails
-  /// Following Lectures.md: "keep it simple" - basic mock data generation
+  /// Generate realistic mock chart data
   List<double> _generateMockChartData() {
     final currentPrice = quoteData?['c']?.toDouble() ?? 200.0;
     final List<double> mockData = [];
 
-    // Use symbol hash to create different patterns for different stocks
     final symbolHash = widget.symbol.hashCode.abs();
+    final startMultiplier = 0.85 + (symbolHash % 20) * 0.01;
+    final volatility = 0.02 + (symbolHash % 10) * 0.005;
+    final trendDirection = (symbolHash % 3) - 1;
 
-    // Create stock-specific starting point and volatility
-    final startMultiplier = 0.85 + (symbolHash % 20) * 0.01; // 0.85 to 1.05
-    final volatility = 0.02 + (symbolHash % 10) * 0.005; // 0.02 to 0.065
-    final trendDirection =
-        (symbolHash % 3) - 1; // -1, 0, or 1 for down, flat, up
-
-    // Generate points based on selected time range
     double price = currentPrice * startMultiplier;
-    final dataPoints = _selectedDays == 1
-        ? 24
-        : _selectedDays; // 24 hours for 1 day, otherwise days
+    final dataPoints = _selectedDays == 1 ? 24 : _selectedDays;
 
     for (int i = 0; i < dataPoints; i++) {
-      // Add trending component
       final trendComponent = trendDirection * (currentPrice * 0.001);
-
-      // Add some realistic random variation using symbol hash
       final randomSeed = (symbolHash + i) % 100;
       final randomVariation =
           (randomSeed - 50) * (currentPrice * volatility) / 50;
-
-      // Add some cyclical movement for realism
       final cyclical = math.sin(i * 0.3) * (currentPrice * 0.01);
 
       price += trendComponent + randomVariation + cyclical;
 
-      // Ensure price doesn't go negative
       if (price < currentPrice * 0.5) {
         price = currentPrice * 0.5;
       }
@@ -373,7 +319,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     return mockData;
   }
 
-  /// Get chart color for mock data based on actual data trend
+  /// Get chart color for mock data
   Color _getMockChartColor() {
     final mockData = _generateMockChartData();
     if (mockData.isEmpty) return Colors.white70;
@@ -381,19 +327,93 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final firstPrice = mockData.first;
     final lastPrice = mockData.last;
 
-    print(
-      'Debug: Mock data for ${widget.symbol} - First: \$${firstPrice.toStringAsFixed(2)}, Last: \$${lastPrice.toStringAsFixed(2)}',
-    );
-
     if (lastPrice > firstPrice) {
-      print('Debug: ${widget.symbol} mock chart color: GREEN (up trend)');
       return Colors.green[400]!;
     } else if (lastPrice < firstPrice) {
-      print('Debug: ${widget.symbol} mock chart color: RED (down trend)');
       return Colors.red[400]!;
     } else {
-      print('Debug: ${widget.symbol} mock chart color: WHITE (flat trend)');
       return Colors.white70;
+    }
+  }
+
+  /// Handle buy stock action
+  void _handleBuyStock() async {
+    final currentPrice = quoteData?['c']?.toDouble() ?? 0.0;
+
+    if (currentPrice <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to buy stock: Price data not available'),
+        ),
+      );
+      return;
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) =>
+          BuyStockScreen(symbol: widget.symbol, currentPrice: currentPrice),
+    );
+
+    if (result == true) {
+      setState(() {});
+    }
+  }
+
+  /// Handle sell stock action
+  void _handleSellStock() async {
+    final currentPrice = quoteData?['c']?.toDouble() ?? 0.0;
+
+    if (currentPrice <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to sell stock: Price data not available'),
+        ),
+      );
+      return;
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => SellStockScreen(
+        symbol: widget.symbol,
+        currentPrice: currentPrice,
+        companyName: profileData?['name'],
+      ),
+    );
+
+    if (result == true) {
+      setState(() {});
+    }
+  }
+
+  /// Launch company website safely
+  Future<void> _launchCompanyWebsite() async {
+    final String? url = profileData?['weburl'];
+
+    if (url != null && url.isNotEmpty) {
+      try {
+        final Uri uri = Uri.parse(url);
+
+        // Try to launch with platformDefault mode first (more compatible)
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      } catch (e) {
+        // If launch fails, show user-friendly message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Website: $url\n(Browser not available on emulator)',
+              ),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        print('Error launching URL: $e');
+      }
     }
   }
 
@@ -402,24 +422,59 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final brightness = themeProvider.brightness;
 
-    return Scaffold(
-      backgroundColor: AppColors.getBG(brightness),
-      appBar: _buildAppBar(brightness),
-      body: Column(
-        children: [
-          // Step 1: Show loading indicator if isLoading is true
-          if (isLoading)
-            Expanded(child: Center(child: CircularProgressIndicator()))
-          else
-            Expanded(child: _buildContent(brightness)),
-          _buildTradingButtons(brightness),
-          SizedBox(height: 20),
-        ],
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.getBG(brightness),
+        appBar: _buildAppBar(brightness),
+        body: Column(
+          children: [
+            // TabBarView with Overview and News tabs
+            Expanded(
+              child: TabBarView(
+                children: [
+                  // Overview Tab - existing content
+                  StockOverviewTab(
+                    symbol: widget.symbol,
+                    isLoading: isLoading,
+                    quoteData: quoteData,
+                    profileData: profileData,
+                    financialData: financialData,
+                    chartDataPoints: chartDataPoints,
+                    chartTimestamps: chartTimestamps,
+                    chartColor: chartColor,
+                    isChartLoading: isChartLoading,
+                    selectedDays: _selectedDays,
+                    isProfileExpanded: _isProfileExpanded,
+                    onDaysChanged: (days) {
+                      setState(() {
+                        _selectedDays = days;
+                      });
+                      _updateChart(days);
+                    },
+                    onProfileToggle: () {
+                      setState(() {
+                        _isProfileExpanded = !_isProfileExpanded;
+                      });
+                    },
+                    onWebsiteLaunch: _launchCompanyWebsite,
+                    sessionManager: _sessionManager,
+                  ),
+                  // News Tab - new widget
+                  StockNewsList(symbol: widget.symbol),
+                ],
+              ),
+            ),
+            // Trading buttons at bottom (shown on both tabs)
+            _buildTradingButtons(brightness),
+            SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
 
-  /// App bar with company name and watchlist toggle
+  /// App bar with TabBar
   PreferredSizeWidget _buildAppBar(Brightness brightness) {
     return AppBar(
       backgroundColor: AppColors.getBG(brightness),
@@ -428,7 +483,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         icon: Icon(Icons.arrow_back, color: AppColors.getText(brightness)),
         onPressed: () => Navigator.pop(context),
       ),
-      // Step 2: Connect Title to profileData["name"] with logo
       title: Row(
         children: [
           // Company logo
@@ -478,16 +532,120 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         IconButton(
           onPressed: _toggleWatchlist,
           icon: Icon(
-            _isInWatchlist ? Icons.favorite : Icons.favorite_border,
-            color: _isInWatchlist ? Colors.red : AppColors.getText(brightness),
+            _isInWatchlist ? Icons.star : Icons.star_border,
+            color: _isInWatchlist
+                ? Colors.amber
+                : AppColors.getText(brightness),
           ),
         ),
       ],
+      // Add TabBar to the bottom of AppBar
+      bottom: TabBar(
+        tabs: [
+          Tab(text: 'Overview'),
+          Tab(text: 'News'),
+        ],
+        labelColor: AppColors.getText(brightness),
+        unselectedLabelColor: AppColors.getText(brightness).withOpacity(0.6),
+        indicatorColor: Colors.blue,
+      ),
     );
   }
 
-  /// Main content with all sections
-  Widget _buildContent(Brightness brightness) {
+  /// Trading buttons at bottom
+  Widget _buildTradingButtons(Brightness brightness) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              onPressed: _handleSellStock,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Sell',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: _handleBuyStock,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Buy',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Stock Overview Tab - Contains all the existing overview content
+/// Following Lectures.md principles: "keep it simple" and clean separation
+class StockOverviewTab extends StatelessWidget {
+  final String symbol;
+  final bool isLoading;
+  final Map<String, dynamic>? quoteData;
+  final Map<String, dynamic>? profileData;
+  final Map<String, dynamic>? financialData;
+  final List<double>? chartDataPoints;
+  final List<int>? chartTimestamps;
+  final Color chartColor;
+  final bool isChartLoading;
+  final int selectedDays;
+  final bool isProfileExpanded;
+  final Function(int) onDaysChanged;
+  final VoidCallback onProfileToggle;
+  final VoidCallback onWebsiteLaunch;
+  final SessionManager sessionManager;
+
+  const StockOverviewTab({
+    Key? key,
+    required this.symbol,
+    required this.isLoading,
+    required this.quoteData,
+    required this.profileData,
+    required this.financialData,
+    required this.chartDataPoints,
+    required this.chartTimestamps,
+    required this.chartColor,
+    required this.isChartLoading,
+    required this.selectedDays,
+    required this.isProfileExpanded,
+    required this.onDaysChanged,
+    required this.onProfileToggle,
+    required this.onWebsiteLaunch,
+    required this.sessionManager,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
+
+    if (isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(16),
       child: Column(
@@ -508,9 +666,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
+  /// Helper method to safely find user's stock
+  PortfolioStock? _findUserStock() {
+    final portfolio = sessionManager.getPortfolio();
+    try {
+      return portfolio.firstWhere(
+        (stock) => stock.symbol.toUpperCase() == symbol.toUpperCase(),
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Price Chart section
   Widget _buildPriceChart(Brightness brightness) {
-    // Get current price from quoteData
     final currentPrice = quoteData?['c']?.toDouble() ?? 0.0;
     final change = quoteData?['d']?.toDouble() ?? 0.0;
     final changePercent = quoteData?['dp']?.toDouble() ?? 0.0;
@@ -555,13 +724,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             ],
           ),
           SizedBox(height: 16),
-          // Interactive time period buttons - following Lectures.md "keep it simple"
+          // Interactive time period buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: _buildTimeRangeButtons(brightness),
           ),
           SizedBox(height: 16),
-          // Chart - show loading indicator or actual chart
+          // Chart
           Container(
             height: 150,
             decoration: BoxDecoration(
@@ -594,10 +763,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   /// My Stock section
   Widget _buildMyStockSection(Brightness brightness) {
-    // Step 3: Get user's shares from SessionManager
     final userStock = _findUserStock();
-
-    // Step 2: Get day range from quoteData
     final dayHigh = quoteData?['h']?.toDouble() ?? 0.0;
     final dayLow = quoteData?['l']?.toDouble() ?? 0.0;
 
@@ -615,21 +781,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         SizedBox(height: 16),
         Row(
           children: [
-            // Shares card
             Expanded(
               child: _buildStatCard(
                 'Shares',
-                // Step 3: Show user's quantity from SessionManager
                 userStock?.quantity.toStringAsFixed(0) ?? '0',
                 brightness,
               ),
             ),
             SizedBox(width: 12),
-            // Day range card
             Expanded(
               child: _buildStatCard(
                 'Day range',
-                // Step 2: Use quoteData["h"] and quoteData["l"]
                 '\$${dayLow.toStringAsFixed(2)} - \$${dayHigh.toStringAsFixed(2)}',
                 brightness,
               ),
@@ -642,16 +804,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   /// Stock Stats section
   Widget _buildStockStats(Brightness brightness) {
-    // Step 2: Get previous close from quoteData
     final previousClose = quoteData?['pc']?.toDouble() ?? 0.0;
-
-    // Step 3: Calculate total returns
     final userStock = _findUserStock();
 
     double totalReturns = 0.0;
     if (userStock != null && quoteData != null) {
       final currentPrice = quoteData!['c']?.toDouble() ?? 0.0;
-      // Step 3: Calculate (current price * quantity) - (purchase price * quantity)
       totalReturns =
           (currentPrice * userStock.quantity) -
           (userStock.averagePurchasePrice * userStock.quantity);
@@ -671,21 +829,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         SizedBox(height: 16),
         Row(
           children: [
-            // Previous close card
             Expanded(
               child: _buildStatCard(
                 'Previous close',
-                // Step 2: Use quoteData["pc"]
                 '\$${previousClose.toStringAsFixed(2)}',
                 brightness,
               ),
             ),
             SizedBox(width: 12),
-            // Total returns card
             Expanded(
               child: _buildStatCard(
                 'Total returns',
-                // Step 3: Show calculated total returns
                 '\$${totalReturns.toStringAsFixed(2)}',
                 brightness,
                 valueColor: totalReturns >= 0 ? Colors.green : Colors.red,
@@ -699,10 +853,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   /// Market Stats section
   Widget _buildMarketStats(Brightness brightness) {
-    // Step 2: Get market cap from profileData
     final marketCap = profileData?['marketCapitalization']?.toDouble() ?? 0.0;
-
-    // Step 2: Get P/E ratio from financialData
     final peRatio =
         financialData?['metric']?['peNormalizedAnnual']?.toDouble() ?? 0.0;
 
@@ -720,21 +871,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         SizedBox(height: 16),
         Row(
           children: [
-            // Market cap card
             Expanded(
               child: _buildStatCard(
                 'Market cap',
-                // Step 2: Format market cap to be readable
                 _formatMarketCap(marketCap),
                 brightness,
               ),
             ),
             SizedBox(width: 12),
-            // P/E ratio card
             Expanded(
               child: _buildStatCard(
                 'Price-Earnings ratio',
-                // Step 2: Use financialData P/E ratio
                 peRatio > 0 ? peRatio.toStringAsFixed(2) : 'N/A',
                 brightness,
               ),
@@ -745,19 +892,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
-  /// Company Profile section with Read More/Show Less functionality
+  /// Company Profile section
   Widget _buildCompanyProfile(Brightness brightness) {
-    // Get company description from profileData
-    final description =
-        profileData?['description'] ?? 'No company description available.';
     final industry = profileData?['finnhubIndustry'] ?? 'N/A';
     final country = profileData?['country'] ?? 'N/A';
     final exchange = profileData?['exchange'] ?? 'N/A';
+    final websiteUrl = profileData?['weburl'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title
         Text(
           'Company Profile',
           style: TextStyle(
@@ -767,48 +911,50 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ),
         ),
         SizedBox(height: 16),
-
-        // Description with expandable functionality
-        Text(
-          description,
-          maxLines: _isProfileExpanded
-              ? null
-              : 4, // Show 4 lines when collapsed, all when expanded
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: AppColors.getText(brightness),
-            height: 1.5,
-            fontSize: 14,
-          ),
-        ),
-
-        // Read More / Show Less button (only show if description is long enough)
-        if (description.length >
-            200) // Only show button for longer descriptions
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _isProfileExpanded = !_isProfileExpanded;
-              });
-            },
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        // Show website button if URL is available
+        if (websiteUrl != null && websiteUrl.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: EdgeInsets.only(bottom: 16),
+            child: OutlinedButton.icon(
+              onPressed: onWebsiteLaunch,
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                side: BorderSide(
+                  color: AppColors.getText(brightness).withOpacity(0.3),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: Icon(
+                Icons.open_in_new,
+                size: 18,
+                color: AppColors.getText(brightness),
+              ),
+              label: Text(
+                'Visit Company Website',
+                style: TextStyle(
+                  color: AppColors.getText(brightness),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
+          )
+        else
+          // Show fallback text if no website URL
+          Container(
+            margin: EdgeInsets.only(bottom: 16),
             child: Text(
-              _isProfileExpanded ? 'Show Less' : 'Read More',
+              'Company website not available in the free tier of our data provider.',
               style: TextStyle(
-                color: Colors.blue,
+                color: AppColors.getText(brightness).withOpacity(0.7),
                 fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontStyle: FontStyle.italic,
               ),
             ),
           ),
-
-        SizedBox(height: 16),
-
-        // Additional company information
         Row(
           children: [
             Expanded(child: _buildInfoItem('Industry', industry, brightness)),
@@ -885,7 +1031,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
-  /// Format market cap to be readable (e.g., in Trillions)
+  /// Format market cap to be readable
   String _formatMarketCap(double marketCap) {
     if (marketCap >= 1000000) {
       return '\$${(marketCap / 1000000).toStringAsFixed(2)}T';
@@ -896,7 +1042,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     }
   }
 
-  /// Build interactive time range buttons - following Lectures.md "keep it simple"
+  /// Build interactive time range buttons
   List<Widget> _buildTimeRangeButtons(Brightness brightness) {
     final buttonData = [
       {'label': '1D', 'days': 1},
@@ -904,23 +1050,18 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       {'label': '1M', 'days': 30},
       {'label': '3M', 'days': 90},
       {'label': '1Y', 'days': 365},
-      {'label': 'ALL', 'days': 1095}, // 3 years for "ALL"
+      {'label': 'ALL', 'days': 1095},
     ];
 
     return buttonData.map((button) {
       final label = button['label'] as String;
       final days = button['days'] as int;
-      final isSelected = _selectedDays == days;
+      final isSelected = selectedDays == days;
 
       return Padding(
         padding: EdgeInsets.only(left: 12),
         child: GestureDetector(
-          onTap: () {
-            setState(() {
-              _selectedDays = days;
-            });
-            _updateChart(days);
-          },
+          onTap: () => onDaysChanged(days),
           child: Text(
             label,
             style: TextStyle(
@@ -935,85 +1076,323 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       );
     }).toList();
   }
+}
 
-  /// Trading buttons at bottom
-  Widget _buildTradingButtons(Brightness brightness) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: _handleSellStock,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                'Sell',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: _handleBuyStock,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                'Buy',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+/// Stock News List Widget - Simple news display for stock
+/// Following Lectures.md principles: "keep it simple" and clean implementation
+class StockNewsList extends StatefulWidget {
+  final String symbol;
+
+  const StockNewsList({Key? key, required this.symbol}) : super(key: key);
+
+  @override
+  _StockNewsListState createState() => _StockNewsListState();
+}
+
+class _StockNewsListState extends State<StockNewsList> {
+  List<NewsArticle> _newsArticles = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCompanyNews();
   }
 
-  /// Handle buy stock action
-  void _handleBuyStock() async {
-    final currentPrice = quoteData?['c']?.toDouble() ?? 0.0;
+  /// Fetch company news using FinnhubService
+  Future<void> _fetchCompanyNews() async {
+    try {
+      print('Fetching news for ${widget.symbol}...');
 
-    if (currentPrice <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unable to buy stock: Price data not available'),
-        ),
-      );
-      return;
-    }
+      final newsData = await FinnhubService.getCompanyNews(widget.symbol);
 
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) =>
-          BuyStockScreen(symbol: widget.symbol, currentPrice: currentPrice),
-    );
+      if (newsData != null && newsData.isNotEmpty) {
+        final articles = newsData
+            .where(
+              (item) => _isValidNewsArticle(item),
+            ) // Filter out non-news items
+            .map<NewsArticle>((item) {
+              return NewsArticle(
+                id:
+                    item['id']?.toString() ??
+                    DateTime.now().millisecondsSinceEpoch.toString(),
+                title: item['headline'] ?? 'No title',
+                content:
+                    item['summary'] ??
+                    item['headline'] ??
+                    'No content available',
+                source: item['source'] ?? 'Unknown',
+                date: DateTime.fromMillisecondsSinceEpoch(
+                  (item['datetime'] ?? 0) * 1000,
+                ),
+              );
+            })
+            .toList();
 
-    // Refresh data after purchase
-    if (result == true) {
+        setState(() {
+          _newsArticles = articles
+              .take(10)
+              .toList(); // Limit to 10 news articles
+          _isLoading = false;
+        });
+
+        print(
+          'Successfully loaded ${_newsArticles.length} news articles (limited to 10)',
+        );
+      } else {
+        setState(() {
+          _newsArticles = [];
+          _isLoading = false;
+        });
+        print('No news articles found for ${widget.symbol}');
+      }
+    } catch (e) {
+      print('Error fetching news for ${widget.symbol}: $e');
       setState(() {
-        // This will trigger a rebuild and show updated user stock data
+        _errorMessage = 'Failed to load news';
+        _isLoading = false;
       });
     }
   }
 
-  /// Handle sell stock action (placeholder)
-  void _handleSellStock() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Sell functionality coming soon')));
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightness = themeProvider.brightness;
+
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.getText(brightness).withOpacity(0.5),
+            ),
+            SizedBox(height: 16),
+            Text(
+              _errorMessage,
+              style: TextStyle(
+                color: AppColors.getText(brightness).withOpacity(0.7),
+              ),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isLoading = true;
+                  _errorMessage = '';
+                });
+                _fetchCompanyNews();
+              },
+              child: Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_newsArticles.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.article_outlined,
+              size: 48,
+              color: AppColors.getText(brightness).withOpacity(0.3),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'No news available for ${widget.symbol}',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppColors.getText(brightness).withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.all(16),
+      itemCount: _newsArticles.length,
+      itemBuilder: (context, index) {
+        final article = _newsArticles[index];
+        return _buildNewsItem(article, brightness);
+      },
+    );
+  }
+
+  /// Build individual news item - simple ListTile design
+  Widget _buildNewsItem(NewsArticle article, Brightness brightness) {
+    return Card(
+      color: AppColors.getWidgetBG(brightness),
+      margin: EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        contentPadding: EdgeInsets.all(16),
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              getLogoForSource(article.source),
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey,
+                  child: Icon(
+                    Icons.article_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        title: Text(
+          article.title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.getText(brightness),
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Row(
+            children: [
+              Text(
+                article.source,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.getText(brightness).withOpacity(0.7),
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                '•',
+                style: TextStyle(
+                  color: AppColors.getText(brightness).withOpacity(0.5),
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                _getTimeAgo(article.date),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.getText(brightness).withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: AppColors.getText(brightness).withOpacity(0.5),
+        ),
+        onTap: () {
+          // TODO: Open article in web view or external browser
+          print('Tapped on article: ${article.title}');
+        },
+      ),
+    );
+  }
+
+  /// Calculate time ago from DateTime
+  String _getTimeAgo(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  /// Filter out non-news items and ticker data
+  bool _isValidNewsArticle(Map<String, dynamic> item) {
+    final headline = item['headline']?.toString() ?? '';
+    final source = item['source']?.toString() ?? '';
+
+    // Filter out empty headlines
+    if (headline.isEmpty || headline.length < 10) {
+      return false;
+    }
+
+    // Filter out items directly from Finnhub (these are usually ticker updates)
+    if (source.toLowerCase() == 'finnhub') {
+      return false;
+    }
+
+    // Filter out headlines that start with exchange/ticker patterns
+    final exchangePatterns = [
+      'nasdaq:',
+      'nyse:',
+      'amex:',
+      'otc:',
+      'tsx:',
+      'lse:',
+    ];
+
+    for (final pattern in exchangePatterns) {
+      if (headline.toLowerCase().startsWith(pattern)) {
+        return false;
+      }
+    }
+
+    // Filter out headlines that are just ticker symbols (all caps, short)
+    if (headline.length <= 5 && headline == headline.toUpperCase()) {
+      return false;
+    }
+
+    // Must have a valid source (not empty or 'unknown')
+    if (source.isEmpty || source.toLowerCase() == 'unknown') {
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Get logo asset path for news source
+  String getLogoForSource(String source) {
+    switch (source.toLowerCase()) {
+      case 'bloomberg':
+        return 'assets/images/bloomberg.png';
+      case 'marketwatch':
+        return 'assets/images/marketwatch.png';
+      case 'reuters':
+        return 'assets/images/reuters.png';
+      case 'seekingalpha':
+      case 'seeking alpha': // Handle variation
+        return 'assets/images/seekingalpha.png';
+      case 'yahoo finance':
+      case 'yahoo':
+        return 'assets/images/yahoofinance.png';
+      default:
+        // Use profilepic.jpg as the fallback for any unknown source
+        return 'assets/images/profilepic.jpg';
+    }
   }
 }

@@ -105,25 +105,6 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
     return stock.getProfitLossPercentage(currentPrice);
   }
 
-  /// Calculate total portfolio value
-  double _calculateTotalValue() {
-    double total = 0.0;
-    for (final stock in _portfolioStocks) {
-      final currentPrice = _currentPrices[stock.symbol] ?? 0.0;
-      total += stock.getTotalValue(currentPrice);
-    }
-    return total;
-  }
-
-  /// Calculate total cost basis
-  double _calculateTotalCost() {
-    double total = 0.0;
-    for (final stock in _portfolioStocks) {
-      total += stock.quantity * stock.averagePurchasePrice;
-    }
-    return total;
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -155,64 +136,13 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
         ),
         onPressed: () => Navigator.pop(context),
       ),
-      title: Row(
-        children: [
-          Text(
-            'My stocks',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              color: AppColors.getText(brightness),
-            ),
-          ),
-          const Spacer(),
-          // Search container - clickable to navigate to search screen
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => StockSearchScreen()),
-              );
-            },
-            child: Container(
-              width: 155,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                border: Border.all(
-                  color: AppColors.getText(brightness).withOpacity(0.7),
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        'Search...',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.getText(brightness).withOpacity(0.5),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: Icon(
-                      Icons.search,
-                      color: AppColors.getText(brightness).withOpacity(0.5),
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      title: Text(
+        'My stocks',
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: AppColors.getText(brightness),
+        ),
       ),
     );
   }
@@ -297,23 +227,8 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
 
   /// Build main portfolio content
   Widget _buildPortfolioContent(Brightness brightness) {
-    final totalValue = _calculateTotalValue();
-    final totalCost = _calculateTotalCost();
-    final totalProfitLoss = totalValue - totalCost;
-    final totalProfitLossPercent = totalCost > 0
-        ? (totalProfitLoss / totalCost) * 100
-        : 0.0;
-
     return Column(
       children: [
-        // Portfolio summary
-        _buildPortfolioSummary(
-          brightness,
-          totalValue,
-          totalProfitLoss,
-          totalProfitLossPercent,
-        ),
-
         // Header section with company count
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 33, vertical: 16),
@@ -345,68 +260,6 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  /// Build portfolio summary card
-  Widget _buildPortfolioSummary(
-    Brightness brightness,
-    double totalValue,
-    double totalProfitLoss,
-    double totalProfitLossPercent,
-  ) {
-    final isPositive = totalProfitLoss >= 0;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.getBG(brightness),
-        border: Border.all(
-          color: AppColors.getText(brightness).withOpacity(0.2),
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Portfolio Value',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.getText(brightness).withOpacity(0.7),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '\$${totalValue.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppColors.getText(brightness),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                isPositive ? Icons.trending_up : Icons.trending_down,
-                size: 20,
-                color: isPositive ? Colors.green : Colors.red,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${isPositive ? '+' : ''}\$${totalProfitLoss.toStringAsFixed(2)} (${totalProfitLossPercent.toStringAsFixed(2)}%)',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: isPositive ? Colors.green : Colors.red,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 

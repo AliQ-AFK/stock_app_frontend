@@ -8,6 +8,8 @@ import 'package:stock_app_frontend/features/premium/presentation/screens/alpha_p
 import 'package:stock_app_frontend/features/premium/presentation/widgets/pro_badge.dart';
 import 'package:stock_app_frontend/features/authentication/presentation/screens/landing_screen.dart';
 import 'package:stock_app_frontend/features/notifications/presentation/screens/notification_screen.dart';
+import 'package:stock_app_frontend/session_manager.dart';
+import 'package:stock_app_frontend/location_service.dart';
 
 class MyAccountScreen extends StatefulWidget {
   final User user;
@@ -21,6 +23,8 @@ class MyAccountScreen extends StatefulWidget {
 class _MyAccountScreenState extends State<MyAccountScreen> {
   bool _isPro = false;
   bool _isLoading = true;
+  bool _isLocationLoading = false;
+  final SessionManager _sessionManager = SessionManager();
 
   @override
   void initState() {
@@ -291,6 +295,14 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
         },
       },
       {
+        'icon': Icons.location_on_outlined,
+        'title': 'Location',
+        'subtitle': _getLocationDisplayText(),
+        'onTap': () {
+          _showLocationDialog();
+        },
+      },
+      {
         'icon': Icons.logout,
         'title': 'Logout',
         'onTap': () {
@@ -361,10 +373,169 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                 color: AppColors.getText(brightness),
               ),
             ),
+            subtitle: item['subtitle'] != null
+                ? Text(
+                    item['subtitle'] as String,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.getText(brightness).withOpacity(0.7),
+                    ),
+                  )
+                : null,
             onTap: item['onTap'] as VoidCallback,
           ),
         );
       }).toList(),
+    );
+  }
+
+  /// Get display text for location menu item
+  String _getLocationDisplayText() {
+    final detectedCountry = _sessionManager.getDetectedCountry();
+    if (detectedCountry != null) {
+      return 'Current: $detectedCountry';
+    } else {
+      return 'Location not set';
+    }
+  }
+
+  /// Fetch and update user location
+  Future<void> _fetchLocation() async {
+    if (_isLocationLoading) return;
+
+    setState(() {
+      _isLocationLoading = true;
+    });
+
+    try {
+      final countryCode = await _sessionManager.fetchAndSaveLocation();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Location detected: $countryCode'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Refresh UI
+        setState(() {});
+      }
+    } catch (e) {
+      // Show error message with better formatting
+      if (mounted) {
+        String errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(11);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Location Error: $errorMessage'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _fetchLocation(),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLocationLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showLocationDialog() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final brightness = themeProvider.brightness;
+    final detectedCountry = _sessionManager.getDetectedCountry();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.getBG(brightness),
+        title: Text(
+          'Location Settings',
+          style: TextStyle(
+            color: AppColors.getText(brightness),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Current Location:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppColors.getText(brightness),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              detectedCountry ?? 'Not detected yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: detectedCountry != null
+                    ? AppColors.getGreen(brightness)
+                    : AppColors.getText(brightness).withOpacity(0.7),
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Tap the button below to detect your current location automatically using GPS.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.getText(brightness).withOpacity(0.8),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: TextStyle(color: AppColors.getText(brightness)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: _isLocationLoading
+                ? null
+                : () {
+                    Navigator.pop(context);
+                    _fetchLocation();
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.getGreen(brightness),
+              foregroundColor: AppColors.getBG(brightness),
+            ),
+            child: _isLocationLoading
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.getBG(brightness),
+                      ),
+                    ),
+                  )
+                : Text('Get My Location'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -507,11 +678,11 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
           children: [
             Text('Need help? Contact our support team:'),
             SizedBox(height: 16),
-            Text('📧 support@alphawave.com'),
+            Text('Email: support@alphawave.com'),
             SizedBox(height: 8),
-            Text('📞 +1 (555) 123-4567'),
+            Text('Phone: +1 (555) 123-4567'),
             SizedBox(height: 8),
-            Text('🕒 Mon-Fri 9AM-6PM EST'),
+            Text('Hours: Mon-Fri 9AM-6PM EST'),
           ],
         ),
         actions: [

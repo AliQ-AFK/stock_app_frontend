@@ -30,9 +30,6 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   // Cache for company logos to avoid repeated API calls
   Map<String, String> _logoCache = {};
 
-  // Rate limiting flag to temporarily disable logo fetching
-  bool _isRateLimited = false;
-
   // FinnhubService provides static methods for API calls
 
   @override
@@ -542,27 +539,16 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
     );
   }
 
-  /// Fetch company logo with caching and rate limiting
-  /// Only makes API call if logo not already cached and not rate limited
+  /// Fetch company logo with simplified error handling
   Future<String?> _fetchCompanyLogo(String symbol) async {
     if (symbol.isEmpty) return null;
 
     // Check cache first
     if (_logoCache.containsKey(symbol)) {
-      return _logoCache[symbol];
-    }
-
-    // Skip API call if we're currently rate limited
-    if (_isRateLimited) {
-      print('Skipping logo fetch for $symbol - rate limited');
-      _logoCache[symbol] = '';
-      return null;
+      return _logoCache[symbol]?.isNotEmpty == true ? _logoCache[symbol] : null;
     }
 
     try {
-      // Add small delay to avoid rate limiting
-      await Future.delayed(Duration(milliseconds: 200));
-
       // Fetch company profile to get logo
       final companyProfile = await FinnhubService.getCompanyProfile(symbol);
       final logoUrl = companyProfile?['logo'] ?? '';
@@ -576,19 +562,6 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
 
       // Cache empty result to avoid repeated failed attempts
       _logoCache[symbol] = '';
-
-      // If it's a 403 error, enable rate limiting temporarily
-      if (e.toString().contains('403')) {
-        print('Rate limit hit - disabling logo fetching for 30 seconds');
-        _isRateLimited = true;
-
-        // Re-enable after 30 seconds
-        Timer(Duration(seconds: 30), () {
-          _isRateLimited = false;
-          print('Logo fetching re-enabled');
-        });
-      }
-
       return null;
     }
   }

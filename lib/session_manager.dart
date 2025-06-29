@@ -5,6 +5,7 @@
 /// Following lectures.md "core features first" principle with simplicity.
 
 import 'package:stock_app_frontend/core/services/finnhub_service.dart';
+import 'package:stock_app_frontend/location_service.dart';
 
 /// Portfolio Stock Model - simplified for session-only storage
 class PortfolioStock {
@@ -50,13 +51,17 @@ class PortfolioStock {
 class UserSession {
   final String username;
   final DateTime sessionStart;
+  String? detectedCountry;
 
-  UserSession({required this.username, DateTime? sessionStart})
-    : sessionStart = sessionStart ?? DateTime.now();
+  UserSession({
+    required this.username,
+    DateTime? sessionStart,
+    this.detectedCountry,
+  }) : sessionStart = sessionStart ?? DateTime.now();
 
   @override
   String toString() {
-    return 'UserSession{username: $username, sessionStart: $sessionStart}';
+    return 'UserSession{username: $username, sessionStart: $sessionStart, detectedCountry: $detectedCountry}';
   }
 }
 
@@ -321,6 +326,139 @@ class SessionManager {
         'totalStocks': 0.0,
       };
     }
+  }
+
+  /// Calculate total portfolio market value using real current prices
+  /// This method fetches current prices from Finnhub API for accurate portfolio valuation
+  Future<double> calculateTotalPortfolioValue() async {
+    try {
+      if (_portfolio.isEmpty) {
+        return 0.0;
+      }
+
+      double totalValue = 0.0;
+
+      for (final stock in _portfolio) {
+        try {
+          // Fetch current price from Finnhub API
+          final quote = await FinnhubService.getQuote(stock.symbol);
+          final currentPrice = quote?['c']?.toDouble() ?? 0.0;
+
+          if (currentPrice > 0) {
+            // Use the real current market price
+            totalValue += stock.getTotalValue(currentPrice);
+            print(
+              '${stock.symbol}: ${stock.quantity} shares × \$${currentPrice.toStringAsFixed(2)} = \$${stock.getTotalValue(currentPrice).toStringAsFixed(2)}',
+            );
+          } else {
+            print('Warning: Could not get current price for ${stock.symbol}');
+          }
+        } catch (e) {
+          print('Error fetching price for ${stock.symbol}: $e');
+        }
+      }
+
+      print('Total portfolio value: \$${totalValue.toStringAsFixed(2)}');
+      return totalValue;
+    } catch (e) {
+      print('Error calculating total portfolio value: $e');
+      return 0.0;
+    }
+  }
+
+  /// Calculate total portfolio profit/loss using real current prices
+  /// Returns both absolute profit/loss amount and percentage
+  Future<Map<String, double>> calculatePortfolioProfitLoss() async {
+    try {
+      if (_portfolio.isEmpty) {
+        return {'amount': 0.0, 'percentage': 0.0};
+      }
+
+      double totalCurrentValue = 0.0;
+      double totalCostBasis = 0.0;
+
+      for (final stock in _portfolio) {
+        try {
+          // Fetch current price from Finnhub API
+          final quote = await FinnhubService.getQuote(stock.symbol);
+          final currentPrice = quote?['c']?.toDouble() ?? 0.0;
+
+          if (currentPrice > 0) {
+            // Calculate current value and cost basis
+            final currentValue = stock.getTotalValue(currentPrice);
+            final costBasis = stock.quantity * stock.averagePurchasePrice;
+
+            totalCurrentValue += currentValue;
+            totalCostBasis += costBasis;
+
+            print(
+              '${stock.symbol}: Current \$${currentValue.toStringAsFixed(2)} vs Cost \$${costBasis.toStringAsFixed(2)}',
+            );
+          }
+        } catch (e) {
+          print('Error fetching price for ${stock.symbol}: $e');
+        }
+      }
+
+      final profitLoss = totalCurrentValue - totalCostBasis;
+      final profitLossPercentage = totalCostBasis > 0
+          ? (profitLoss / totalCostBasis) * 100
+          : 0.0;
+
+      print(
+        'Portfolio P&L: \$${profitLoss.toStringAsFixed(2)} (${profitLossPercentage.toStringAsFixed(2)}%)',
+      );
+
+      return {'amount': profitLoss, 'percentage': profitLossPercentage};
+    } catch (e) {
+      print('Error calculating portfolio profit/loss: $e');
+      return {'amount': 0.0, 'percentage': 0.0};
+    }
+  }
+
+  /// Fetch user's location and save detected country
+  /// Following Lectures.md principle: simple integration with location service
+  Future<String> fetchAndSaveLocation() async {
+    try {
+      print('SessionManager: Fetching user location...');
+
+      if (_currentUser == null) {
+        print('SessionManager: No active user session');
+        throw Exception('No active user session');
+      }
+
+      // Use LocationService to get country
+      final locationService = LocationService();
+
+      print('SessionManager: Calling LocationService.getCountry()...');
+      final countryCode = await locationService.getCountry();
+
+      // Validate country code
+      if (countryCode.isEmpty) {
+        throw Exception('Invalid country code received');
+      }
+
+      // Save to current user session
+      _currentUser!.detectedCountry = countryCode;
+
+      print('SessionManager: Location saved successfully: $countryCode');
+      return countryCode;
+    } catch (e) {
+      print('SessionManager: Error fetching and saving location: $e');
+
+      // Ensure we have a clean error message
+      if (e is Exception) {
+        rethrow; // Pass Exception as-is
+      } else {
+        // Wrap other errors in Exception
+        throw Exception('Unexpected error while getting location: $e');
+      }
+    }
+  }
+
+  /// Get detected country from current session
+  String? getDetectedCountry() {
+    return _currentUser?.detectedCountry;
   }
 
   /// Clear all session data (for testing/reset purposes)

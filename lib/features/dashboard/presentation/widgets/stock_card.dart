@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
 import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 import 'package:stock_app_frontend/core/models/stock.dart';
+import 'package:stock_app_frontend/features/stocks/presentation/screens/stock_detail_screen.dart';
+import 'package:stock_app_frontend/core/services/finnhub_service.dart';
 
 /// Stock card widget
 ///
-/// Displays stock information in a compact card format as shown
-/// in the Figma design with symbol, percentage change, and styling.
+/// Displays stock information in a big card format matching trending stocks design
+/// with symbol, price, percentage change, and navigation to stock details.
 class StockCard extends StatelessWidget {
   /// The stock to display
   final Stock stock;
@@ -26,56 +28,110 @@ class StockCard extends StatelessWidget {
     final isPositive = changePercent >= 0;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap:
+          onTap ??
+          () {
+            // Navigate to stock detail screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => StockDetailScreen(symbol: stock.symbol),
+              ),
+            );
+          },
       child: Container(
-        width: 85,
-        height: 100,
-        padding: const EdgeInsets.all(8),
+        width: 140, // Same width as trending stocks
+        height: 150, // Same height as trending stocks
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.getBigElements(brightness),
+          color: AppColors.getGreyBG(brightness),
+          border: Border.all(
+            color: AppColors.getText(brightness).withOpacity(0.1),
+          ),
           borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Stock logo/icon - centered and bigger
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: _getStockColor(stock.symbol),
-                borderRadius: BorderRadius.circular(8),
+            // Company logo - big and centered with real logo fetching
+            Center(
+              child: Container(
+                width: 40, // Same size as trending stocks
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _getStockColor(stock.symbol),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: FutureBuilder<String?>(
+                    future: _fetchCompanyLogo(stock.symbol),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                        // Show real company logo
+                        return Image.network(
+                          snapshot.data!,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(child: _getStockIcon(stock.symbol));
+                          },
+                        );
+                      } else {
+                        // Show fallback icon
+                        return Center(child: _getStockIcon(stock.symbol));
+                      }
+                    },
+                  ),
+                ),
               ),
-              child: Center(child: _getStockIcon(stock.symbol)),
             ),
-
             const SizedBox(height: 8),
 
-            // Stock symbol - centered
-            Text(
-              stock.symbol,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.getText(brightness),
+            // Symbol - centered
+            Center(
+              child: Text(
+                stock.symbol,
+                style: TextStyle(
+                  fontSize: 16, // Same as trending stocks
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.getText(brightness),
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
-
             const SizedBox(height: 2),
 
-            // Percentage change - centered
-            Text(
-              '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(1)}%',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isPositive
-                    ? AppColors.getGreen(brightness)
-                    : AppColors.getRed(brightness),
+            // Price - centered
+            Center(
+              child: Text(
+                '\$${stock.currentPrice.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 14, // Same as trending stocks
+                  color: AppColors.getText(brightness).withOpacity(0.7),
+                ),
               ),
-              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 2),
+
+            // Change percentage - centered
+            Center(
+              child: Text(
+                '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
+                style: TextStyle(
+                  fontSize: 14, // Same as trending stocks
+                  fontWeight: FontWeight.w500,
+                  color: isPositive ? Colors.green : Colors.red,
+                ),
+              ),
             ),
           ],
         ),
@@ -103,7 +159,17 @@ class StockCard extends StatelessWidget {
       case 'AMZN':
         return Color(0xFFFF9900); // Amazon orange
       default:
-        return AppColors.getGreyBG(Brightness.light); // Use a neutral default
+        final colors = [
+          Colors.blue,
+          Colors.green,
+          Colors.orange,
+          Colors.purple,
+          Colors.red,
+          Colors.teal,
+          Colors.indigo,
+          Colors.pink,
+        ];
+        return colors[symbol.hashCode % colors.length];
     }
   }
 
@@ -111,107 +177,91 @@ class StockCard extends StatelessWidget {
   Widget _getStockIcon(String symbol) {
     switch (symbol) {
       case 'TSLA':
-        return Container(
-          padding: EdgeInsets.all(6),
-          child: Text(
-            'T',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              fontFamily: 'System',
-            ),
+        return Text(
+          'T',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
           ),
         );
       case 'AAPL':
-        return Container(
-          padding: EdgeInsets.all(4),
-          child: Icon(Icons.apple, color: Colors.white, size: 24),
-        );
+        return Icon(Icons.apple, color: Colors.white, size: 24);
       case 'NVDA':
-        return Container(
-          padding: EdgeInsets.all(6),
-          child: Text(
-            'N',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              fontStyle: FontStyle.italic,
-            ),
+        return Text(
+          'N',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            fontStyle: FontStyle.italic,
           ),
         );
       case 'AMD':
-        return Container(
-          padding: EdgeInsets.all(4),
-          child: Text(
-            'AMD',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
+        return Text(
+          'AMD',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
           ),
         );
       case 'META':
-        return Container(
-          padding: EdgeInsets.all(6),
-          child: Transform.rotate(
-            angle: 0.1,
-            child: Text(
-              'f',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
+        return Text(
+          'f',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            fontStyle: FontStyle.italic,
           ),
         );
       case 'GOOGL':
-        return Container(
-          padding: EdgeInsets.all(6),
-          child: Text(
-            'G',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+        return Text(
+          'G',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
           ),
         );
       case 'MSFT':
-        return Container(
-          padding: EdgeInsets.all(4),
-          child: Icon(Icons.window, color: Colors.white, size: 22),
-        );
+        return Icon(Icons.window, color: Colors.white, size: 20);
       case 'AMZN':
-        return Container(
-          padding: EdgeInsets.all(6),
-          child: Text(
-            'a',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              fontStyle: FontStyle.italic,
-            ),
+        return Text(
+          'a',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            fontStyle: FontStyle.italic,
           ),
         );
       default:
-        return Container(
-          padding: EdgeInsets.all(6),
-          child: Text(
-            symbol.substring(0, 1),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+        return Text(
+          symbol.substring(0, 1),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         );
+    }
+  }
+
+  /// Fetch company logo from API with error handling
+  Future<String?> _fetchCompanyLogo(String symbol) async {
+    if (symbol.isEmpty) return null;
+
+    try {
+      // Fetch company profile to get logo
+      final companyProfile = await FinnhubService.getCompanyProfile(symbol);
+      final logoUrl = companyProfile?['logo'] ?? '';
+
+      return logoUrl.isNotEmpty ? logoUrl : null;
+    } catch (e) {
+      // Return null on error - will use fallback icon
+      return null;
     }
   }
 }

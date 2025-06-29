@@ -39,8 +39,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   // Hardcoded placeholder values as specified in requirements
   static const double _placeholderStockPrice =
       150.0; // Used for portfolio calculations
-  static const String _dailyChangeAmount = "+\$1,245.30";
-  static const String _dailyChangePercent = "+2.8%";
   static const String _totalReturn = "+25% Total Return";
   static const String _avgAnnualReturn = "Avg Annual Return: +5.3%";
 
@@ -69,23 +67,63 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final portfolio = _sessionManager.getPortfolio();
       final watchlistSymbols = _sessionManager.getWishlist();
 
-      // Convert portfolio stocks to Stock objects
+      // Convert portfolio stocks to Stock objects directly
       final portfolioStocks = <Stock>[];
       for (final portfolioStock in portfolio) {
-        final stock = await StockDataService.getStockBySymbol(
-          portfolioStock.symbol,
-        );
-        if (stock != null) {
-          portfolioStocks.add(stock);
+        try {
+          // Get current quote to create Stock object
+          final quote = await FinnhubService.getQuote(portfolioStock.symbol);
+          if (quote != null) {
+            portfolioStocks.add(
+              Stock(
+                stockID: portfolioStock.symbol,
+                symbol: portfolioStock.symbol,
+                company: portfolioStock.symbol, // Use symbol as fallback
+                exchange: 'NASDAQ', // Default exchange
+                currentPrice: quote['c']?.toDouble() ?? 0.0,
+                previousClose: quote['pc']?.toDouble() ?? 0.0,
+                openPrice:
+                    quote['o']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                dayHigh:
+                    quote['h']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                dayLow: quote['l']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                volume: 1000000.0, // Default volume
+                marketCap: 1000000000.0, // Default market cap
+              ),
+            );
+          }
+        } catch (e) {
+          print('Error loading portfolio stock ${portfolioStock.symbol}: $e');
         }
       }
 
-      // Convert watchlist symbols to Stock objects
+      // Convert watchlist symbols to Stock objects directly
       final watchlistStocks = <Stock>[];
       for (final symbol in watchlistSymbols) {
-        final stock = await StockDataService.getStockBySymbol(symbol);
-        if (stock != null) {
-          watchlistStocks.add(stock);
+        try {
+          // Get current quote to create Stock object
+          final quote = await FinnhubService.getQuote(symbol);
+          if (quote != null) {
+            watchlistStocks.add(
+              Stock(
+                stockID: symbol,
+                symbol: symbol,
+                company: symbol, // Use symbol as fallback
+                exchange: 'NASDAQ', // Default exchange
+                currentPrice: quote['c']?.toDouble() ?? 0.0,
+                previousClose: quote['pc']?.toDouble() ?? 0.0,
+                openPrice:
+                    quote['o']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                dayHigh:
+                    quote['h']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                dayLow: quote['l']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                volume: 1000000.0, // Default volume
+                marketCap: 1000000000.0, // Default market cap
+              ),
+            );
+          }
+        } catch (e) {
+          print('Error loading watchlist stock $symbol: $e');
         }
       }
 
@@ -219,27 +257,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     final portfolio = _sessionManager.getPortfolio();
     final companiesCount = portfolio.length;
 
-    // Calculate total portfolio value using current stock prices
-    final totalValue = portfolio.fold<double>(0.0, (sum, portfolioStock) {
-      // Find matching Stock object for current price
-      final stock = _portfolioStocks.firstWhere(
-        (s) => s.symbol == portfolioStock.symbol,
-        orElse: () => Stock(
-          stockID: portfolioStock.symbol,
-          symbol: portfolioStock.symbol,
-          company: portfolioStock.symbol,
-          exchange: 'NASDAQ',
-          currentPrice: _placeholderStockPrice,
-          previousClose: _placeholderStockPrice,
-          openPrice: _placeholderStockPrice,
-          dayHigh: _placeholderStockPrice,
-          dayLow: _placeholderStockPrice,
-          volume: 0.0,
-          marketCap: 0.0,
-        ),
-      );
-      return sum + (portfolioStock.quantity * stock.currentPrice);
-    });
+    // Note: We'll use FutureBuilder below to get real market value
 
     return Center(
       child: Container(
@@ -285,33 +303,54 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
             const SizedBox(height: 16),
 
-            // Total value amount - centered and large
-            Text(
-              '\$${totalValue.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: AppColors.getText(brightness),
-              ),
+            // Total value amount - centered and large using real market prices
+            FutureBuilder<double>(
+              future: _sessionManager.calculateTotalPortfolioValue(),
+              builder: (context, snapshot) {
+                final totalValue = snapshot.data ?? 0.0;
+                return Text(
+                  '\$${totalValue.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.getText(brightness),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 12),
 
-            // Daily change with green arrow - centered
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.arrow_upward, color: Colors.green, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  '$_dailyChangeAmount ($_dailyChangePercent)',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
+            // Real-time profit/loss with dynamic color (same as dashboard)
+            FutureBuilder<Map<String, double>>(
+              future: _sessionManager.calculatePortfolioProfitLoss(),
+              builder: (context, snapshot) {
+                final profitLossData =
+                    snapshot.data ?? {'amount': 0.0, 'percentage': 0.0};
+                final profitLoss = profitLossData['amount'] ?? 0.0;
+                final profitLossPercent = profitLossData['percentage'] ?? 0.0;
+                final isPositive = profitLoss >= 0;
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                      color: isPositive ? Colors.green : Colors.red,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${isPositive ? '+' : ''}\$${profitLoss.toStringAsFixed(2)} (${profitLossPercent.toStringAsFixed(2)}%)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: isPositive ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 12),
@@ -473,18 +512,17 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     }
 
     return SizedBox(
-      height: 100,
+      height: 150, // Same as trending stocks height
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16),
         itemCount: stocks.length,
         itemBuilder: (context, index) {
           return Padding(
             padding: EdgeInsets.only(right: index < stocks.length - 1 ? 12 : 0),
             child: StockCard(
               stock: stocks[index],
-              onTap: () {
-                // TODO: Navigate to stock details
-              },
+              // Navigation handled automatically by StockCard
             ),
           );
         },

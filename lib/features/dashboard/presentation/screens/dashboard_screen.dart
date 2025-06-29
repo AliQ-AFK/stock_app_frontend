@@ -14,6 +14,7 @@ import 'package:stock_app_frontend/features/stocks/presentation/screens/my_stock
 import 'package:stock_app_frontend/features/stocks/presentation/screens/stock_search_screen.dart';
 import 'package:stock_app_frontend/features/watchlist/presentation/screens/watchlist_screen.dart';
 import 'package:stock_app_frontend/features/notifications/presentation/screens/notification_screen.dart';
+import 'package:stock_app_frontend/features/dashboard/presentation/screens/portfolio_screen.dart';
 import '../widgets/stock_card.dart';
 import '../widgets/news_card.dart';
 import '../widgets/dashboard_header.dart';
@@ -69,27 +70,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Load all stocks data
       final allStocks = await StockDataService.getAllStocks();
 
-      // Load news data from API
-      final news = await NewsService.getTrendingNews();
-      print('Dashboard: Loaded ${news.length} news articles');
+      // Use hard-coded news data matching news screen (first 2 items)
+      final news = _getHardCodedLatestNews();
+      print('Dashboard: Loaded ${news.length} hard-coded news articles');
 
-      // Convert portfolio stocks to Stock objects
+      // Convert portfolio stocks to Stock objects directly
       final myStocks = <Stock>[];
       for (final portfolioStock in portfolioStocks) {
-        final stock = await StockDataService.getStockBySymbol(
-          portfolioStock.symbol,
-        );
-        if (stock != null) {
-          myStocks.add(stock);
+        try {
+          // Get current quote to create Stock object
+          final quote = await FinnhubService.getQuote(portfolioStock.symbol);
+          if (quote != null) {
+            myStocks.add(
+              Stock(
+                stockID: portfolioStock.symbol,
+                symbol: portfolioStock.symbol,
+                company: portfolioStock.symbol, // Use symbol as fallback
+                exchange: 'NASDAQ', // Default exchange
+                currentPrice: quote['c']?.toDouble() ?? 0.0,
+                previousClose: quote['pc']?.toDouble() ?? 0.0,
+                openPrice:
+                    quote['o']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                dayHigh:
+                    quote['h']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                dayLow: quote['l']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                volume: 1000000.0, // Default volume
+                marketCap: 1000000000.0, // Default market cap
+              ),
+            );
+          }
+        } catch (e) {
+          print('Error loading stock ${portfolioStock.symbol}: $e');
         }
       }
 
-      // Convert watchlist symbols to Stock objects
+      // Convert watchlist symbols to Stock objects directly
       final watchlistStocks = <Stock>[];
       for (final symbol in watchlistSymbols) {
-        final stock = await StockDataService.getStockBySymbol(symbol);
-        if (stock != null) {
-          watchlistStocks.add(stock);
+        try {
+          // Get current quote to create Stock object
+          final quote = await FinnhubService.getQuote(symbol);
+          if (quote != null) {
+            watchlistStocks.add(
+              Stock(
+                stockID: symbol,
+                symbol: symbol,
+                company: symbol, // Use symbol as fallback
+                exchange: 'NASDAQ', // Default exchange
+                currentPrice: quote['c']?.toDouble() ?? 0.0,
+                previousClose: quote['pc']?.toDouble() ?? 0.0,
+                openPrice:
+                    quote['o']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                dayHigh:
+                    quote['h']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                dayLow: quote['l']?.toDouble() ?? quote['c']?.toDouble() ?? 0.0,
+                volume: 1000000.0, // Default volume
+                marketCap: 1000000000.0, // Default market cap
+              ),
+            );
+          }
+        } catch (e) {
+          print('Error loading watchlist stock $symbol: $e');
         }
       }
 
@@ -339,73 +380,98 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final brightness = themeProvider.brightness;
 
-    final portfolioSummary = _sessionManager.getPortfolioSummary();
-    final totalCost = portfolioSummary['totalCost'] ?? 0.0;
-
-    // Hardcoded values like in portfolio screen
-    const dailyChangeAmount = "+\$0.00";
-    const dailyChangePercent = "(0.00%)";
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.getGreyBG(brightness), // Theme-aware background
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () {
+        // Navigate to portfolio screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PortfolioScreen(user: widget.user),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center, // Center everything
-        children: [
-          // Portfolio Value title
-          Text(
-            'Portfolio Value',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: AppColors.getText(brightness).withOpacity(0.7),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.getGreyBG(brightness), // Theme-aware background
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-            textAlign: TextAlign.center,
-          ),
-
-          const SizedBox(height: 12),
-
-          // Total value amount - prominent display
-          Text(
-            '\$${totalCost.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 48, // Increased font size for prominence
-              fontWeight: FontWeight.bold,
-              color: AppColors.getText(brightness),
-            ),
-            textAlign: TextAlign.center,
-          ),
-
-          const SizedBox(height: 8),
-
-          // Daily change with green arrow - centered
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center, // Center the row
-            children: [
-              const Icon(Icons.trending_up, color: Colors.green, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                '$dailyChangeAmount $dailyChangePercent',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.green,
-                ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center, // Center everything
+          children: [
+            // Portfolio Value title
+            Text(
+              'Portfolio Value',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppColors.getText(brightness).withOpacity(0.7),
               ),
-            ],
-          ),
-        ],
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 12),
+
+            // Total value amount - prominent display using real market prices
+            FutureBuilder<double>(
+              future: _sessionManager.calculateTotalPortfolioValue(),
+              builder: (context, snapshot) {
+                final totalValue = snapshot.data ?? 0.0;
+                return Text(
+                  '\$${totalValue.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 48, // Increased font size for prominence
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.getText(brightness),
+                  ),
+                  textAlign: TextAlign.center,
+                );
+              },
+            ),
+
+            const SizedBox(height: 8),
+
+            // Real-time profit/loss with dynamic color
+            FutureBuilder<Map<String, double>>(
+              future: _sessionManager.calculatePortfolioProfitLoss(),
+              builder: (context, snapshot) {
+                final profitLossData =
+                    snapshot.data ?? {'amount': 0.0, 'percentage': 0.0};
+                final profitLoss = profitLossData['amount'] ?? 0.0;
+                final profitLossPercent = profitLossData['percentage'] ?? 0.0;
+                final isPositive = profitLoss >= 0;
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isPositive ? Icons.trending_up : Icons.trending_down,
+                      color: isPositive ? Colors.green : Colors.red,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${isPositive ? '+' : ''}\$${profitLoss.toStringAsFixed(2)} (${profitLossPercent.toStringAsFixed(2)}%)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: isPositive ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -450,18 +516,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     return SizedBox(
-      height: 150, // Increased to match trending stocks size
+      height: 150, // Same as trending stocks height
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16),
         itemCount: stocks.length,
         itemBuilder: (context, index) {
           return Padding(
             padding: EdgeInsets.only(right: index < stocks.length - 1 ? 12 : 0),
             child: StockCard(
               stock: stocks[index],
-              onTap: () {
-                // TODO: Navigate to stock details
-              },
+              // Navigation handled automatically by StockCard
             ),
           );
         },
@@ -499,10 +564,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Build individual news card with Top Story badge matching the design
+  /// Build individual news card matching the design
   Widget _buildTopNewsCard(NewsArticle article, Brightness brightness) {
-    final isTopStory = _isTopStory(article);
-
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -511,15 +574,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Row(
         children: [
-          // News icon (grey background with document icon)
+          // News icon with asset logo
           Container(
             width: 60,
             height: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey[600],
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                _getLogoForSource(article.source),
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[600],
+                    child: Icon(
+                      Icons.article_outlined,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  );
+                },
+              ),
             ),
-            child: Icon(Icons.article_outlined, color: Colors.white, size: 24),
           ),
 
           const SizedBox(width: 16),
@@ -529,7 +607,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Source, time, and Top Story badge
+                // Source, time, and Top Story badge (only for Bloomberg)
                 Row(
                   children: [
                     Text(
@@ -549,8 +627,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const Spacer(),
-                    // Top Story badge
-                    if (isTopStory)
+                    // Top Story badge (only for Bloomberg)
+                    if (article.source.toLowerCase() == 'bloomberg')
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -865,6 +943,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: Colors.white,
           ),
         );
+    }
+  }
+
+  /// Get hard-coded news data matching news screen (first 2 items only)
+  List<NewsArticle> _getHardCodedLatestNews() {
+    return [
+      NewsArticle(
+        id: '1',
+        title: 'Federal Reserve Signals Rate Changes',
+        content:
+            'Federal Reserve officials signal potential rate changes following latest economic data...',
+        source: 'Bloomberg',
+        date: DateTime.now().subtract(Duration(hours: 2)),
+        trendingTags: ['Federal Reserve', 'rates', 'economy'],
+      ),
+      NewsArticle(
+        id: '2',
+        title: 'Tech Sector Leads Market Rally',
+        content:
+            'Technology stocks lead broader market gains as investors show confidence in sector fundamentals...',
+        source: 'Reuters',
+        date: DateTime.now().subtract(Duration(hours: 4)),
+        trendingTags: ['tech', 'market', 'stocks'],
+      ),
+    ];
+  }
+
+  /// Get logo asset path for news source
+  String _getLogoForSource(String source) {
+    switch (source.toLowerCase()) {
+      case 'bloomberg':
+        return 'assets/images/bloomberg.png';
+      case 'marketwatch':
+        return 'assets/images/marketwatch.png';
+      case 'reuters':
+        return 'assets/images/reuters.png';
+      case 'seekingalpha':
+      case 'seeking alpha': // Handle variation
+        return 'assets/images/seekingalpha.png';
+      case 'yahoo finance':
+      case 'yahoo':
+        return 'assets/images/yahoofinance.png';
+      default:
+        // Use profilepic.jpg as the fallback for any unknown source
+        return 'assets/images/profilepic.jpg';
     }
   }
 }

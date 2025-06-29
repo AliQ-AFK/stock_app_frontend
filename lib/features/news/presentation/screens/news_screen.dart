@@ -1,58 +1,114 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stock_app_frontend/core/constants/app_colors.dart';
+import 'package:stock_app_frontend/core/models/user.dart';
 import 'package:stock_app_frontend/core/providers/theme_provider.dart';
 import 'package:stock_app_frontend/core/services/finnhub_service.dart';
+import 'package:stock_app_frontend/core/services/payment_service.dart';
+import 'package:stock_app_frontend/features/premium/presentation/widgets/pro_badge.dart';
 import 'package:stock_app_frontend/features/stocks/presentation/screens/stock_search_screen.dart';
 import 'package:stock_app_frontend/features/stocks/presentation/screens/stock_detail_screen.dart';
 import 'package:stock_app_frontend/features/notifications/presentation/screens/notification_screen.dart';
 
-/// Simple class to hold combined stock news data
-class StockNewsItem {
-  final String symbol;
-  final String logoUrl;
-  final String headline;
+/// Hard-coded news item for the news section
+class HardCodedNewsItem {
+  final String title;
   final String source;
-  final int datetime;
+  final String timeAgo;
+  final String? badge; // "Top Story", "Sponsored", etc.
+  final Color backgroundColor;
+  final String imagePath;
 
-  StockNewsItem({
-    required this.symbol,
-    required this.logoUrl,
-    required this.headline,
+  HardCodedNewsItem({
+    required this.title,
     required this.source,
-    required this.datetime,
+    required this.timeAgo,
+    this.badge,
+    required this.backgroundColor,
+    required this.imagePath,
   });
 }
 
-/// News Screen - Maximum Simplicity Approach
+/// News Screen - Following Figma Design
 ///
-/// Shows trending stocks carousel and news with company logos
-/// instead of article thumbnails for easier implementation
+/// Keeps trending stocks real, but uses hard-coded news data
+/// matching the exact Figma prototype design
 class NewsScreen extends StatefulWidget {
-  const NewsScreen({Key? key}) : super(key: key);
+  final User user;
+
+  const NewsScreen({Key? key, required this.user}) : super(key: key);
 
   @override
   State<NewsScreen> createState() => _NewsScreenState();
 }
 
 class _NewsScreenState extends State<NewsScreen> {
-  /// Hardcoded list of popular stock symbols for simplicity
-  final List<String> popularSymbols = ['AAPL', 'TSLA', 'NVDA', 'AMD', 'META'];
+  /// Hardcoded list of popular stock symbols for trending stocks
+  final List<String> popularSymbols = ['TSLA', 'AAPL', 'NVDA', 'AMD', 'META'];
 
-  // State variables
+  // State variables for trending stocks (keeping this real)
   List<Map<String, dynamic>> trendingStocks = [];
-  List<StockNewsItem> stockNews = [];
   bool isLoadingTrending = true;
-  bool isLoadingNews = true;
+
+  // Hard-coded news data matching Figma design
+  late List<HardCodedNewsItem> hardCodedNews;
+
+  // PRO status variables
+  bool _isPro = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _checkProStatus();
     _fetchTrendingData();
-    _fetchNewsData();
   }
 
-  /// Fetch trending stocks data (Part 1: Trending Stocks Carousel)
+  void _checkProStatus() async {
+    bool proStatus = await PaymentService.getProStatus(widget.user.userId);
+    setState(() {
+      _isPro = proStatus;
+      _isLoading = false;
+    });
+  }
+
+  /// Initialize hard-coded news data matching Figma design
+  void _initializeHardCodedNews(Brightness brightness) {
+    hardCodedNews = [
+      HardCodedNewsItem(
+        title: 'Federal Reserve Signals Rate Changes',
+        source: 'Bloomberg',
+        timeAgo: '2h ago',
+        badge: 'Top Story',
+        backgroundColor: AppColors.getGreyBG(brightness),
+        imagePath: 'assets/images/bloomberg.png',
+      ),
+      HardCodedNewsItem(
+        title: 'Tech Sector Leads Market Rally',
+        source: 'Reuters',
+        timeAgo: '4h ago',
+        backgroundColor: AppColors.getGreyBG(brightness),
+        imagePath: 'assets/images/reuters.png',
+      ),
+      HardCodedNewsItem(
+        title: 'Investment Strategies for Market Volatility',
+        source: 'MarketWatch',
+        timeAgo: '5h ago',
+        badge: 'Sponsored',
+        backgroundColor: AppColors.getWidgetBG(brightness),
+        imagePath: 'assets/images/marketwatch.png',
+      ),
+      HardCodedNewsItem(
+        title: 'Global Markets React to Asian Trading Updates',
+        source: 'Yahoo Mail',
+        timeAgo: '6h ago',
+        backgroundColor: AppColors.getGreyBG(brightness),
+        imagePath: 'assets/images/yahoofinance.png', // Yahoo Mail logo
+      ),
+    ];
+  }
+
+  /// Fetch trending stocks data (keeping this real as requested)
   Future<void> _fetchTrendingData() async {
     try {
       List<Map<String, dynamic>> results = [];
@@ -86,92 +142,37 @@ class _NewsScreenState extends State<NewsScreen> {
     }
   }
 
-  /// Fetch news data with company logos (Part 2: News List)
-  Future<void> _fetchNewsData() async {
-    try {
-      List<StockNewsItem> newsItems = [];
-
-      for (String symbol in popularSymbols) {
-        try {
-          // Fetch both company news and profile simultaneously
-          final results = await Future.wait([
-            FinnhubService.getCompanyNews(symbol),
-            FinnhubService.getCompanyProfile(symbol),
-          ]);
-
-          final news = results[0] as List<dynamic>;
-          final profile = results[1] as Map<String, dynamic>?;
-
-          if (news.isNotEmpty) {
-            // Take only the first (most recent) article
-            final firstArticle = news[0];
-            final logoUrl = profile?['logo'] ?? '';
-
-            newsItems.add(
-              StockNewsItem(
-                symbol: symbol,
-                logoUrl: logoUrl,
-                headline: firstArticle['headline'] ?? 'No headline available',
-                source: firstArticle['source'] ?? 'Unknown source',
-                datetime: firstArticle['datetime'] ?? 0,
-              ),
-            );
-          }
-        } catch (e) {
-          print('Error fetching news for $symbol: $e');
-          // Add fallback news item
-          newsItems.add(
-            StockNewsItem(
-              symbol: symbol,
-              logoUrl: '',
-              headline: 'Latest updates on $symbol',
-              source: 'Market News',
-              datetime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            ),
-          );
-        }
-      }
-
-      setState(() {
-        stockNews = newsItems;
-        isLoadingNews = false;
-      });
-    } catch (e) {
-      print('Error in _fetchNewsData: $e');
-      setState(() {
-        isLoadingNews = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final brightness = themeProvider.brightness;
+
+    // Initialize hard-coded news with theme colors
+    _initializeHardCodedNews(brightness);
 
     return Scaffold(
       backgroundColor: AppColors.getBG(brightness),
       appBar: _buildAppBar(brightness),
       body: RefreshIndicator(
         onRefresh: () async {
-          await Future.wait([_fetchTrendingData(), _fetchNewsData()]);
+          await _fetchTrendingData();
         },
         child: SingleChildScrollView(
           physics: AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Trending Stocks Section
+              // Trending Stocks Section (keeping same)
               _buildSectionTitle('Trending Stocks', brightness),
               const SizedBox(height: 16),
               _buildTrendingStocksCarousel(brightness),
 
               const SizedBox(height: 32),
 
-              // News Section
-              _buildSectionTitle('Latest Stock News', brightness),
+              // News Section (hard-coded matching Figma)
+              _buildSectionTitle('News', brightness),
               const SizedBox(height: 16),
-              _buildNewsList(brightness),
+              _buildHardCodedNewsList(brightness),
 
               const SizedBox(height: 32),
             ],
@@ -181,7 +182,7 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  /// Build app bar with search functionality
+  /// Build app bar matching Figma design
   PreferredSizeWidget _buildAppBar(Brightness brightness) {
     return AppBar(
       backgroundColor: AppColors.getBG(brightness),
@@ -190,61 +191,16 @@ class _NewsScreenState extends State<NewsScreen> {
       title: Row(
         children: [
           Text(
-            'News',
+            'Latest News',
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w600,
               color: AppColors.getText(brightness),
             ),
           ),
+          // PRO badge - only show when user has Pro status
+          if (_isPro) ...[const SizedBox(width: 8), ProBanner(text: 'PRO')],
           const Spacer(),
-          // Search container
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => StockSearchScreen()),
-              );
-            },
-            child: Container(
-              width: 155,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                border: Border.all(
-                  color: AppColors.getText(brightness).withOpacity(0.7),
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        'Search...',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.getText(brightness).withOpacity(0.5),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: Icon(
-                      Icons.search,
-                      color: AppColors.getText(brightness).withOpacity(0.5),
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
           // Notification icon
           IconButton(
             onPressed: () {
@@ -256,10 +212,9 @@ class _NewsScreenState extends State<NewsScreen> {
             icon: Icon(
               Icons.notifications_outlined,
               color: AppColors.getText(brightness),
-              size: 28,
+              size: 24,
             ),
-            padding: EdgeInsets.all(8),
-            constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+            padding: EdgeInsets.zero,
           ),
         ],
       ),
@@ -273,7 +228,7 @@ class _NewsScreenState extends State<NewsScreen> {
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 20,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.getText(brightness),
         ),
@@ -281,7 +236,7 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  /// Build trending stocks horizontal carousel
+  /// Build trending stocks horizontal carousel (keeping same)
   Widget _buildTrendingStocksCarousel(Brightness brightness) {
     if (isLoadingTrending) {
       return Container(
@@ -305,7 +260,7 @@ class _NewsScreenState extends State<NewsScreen> {
     }
 
     return Container(
-      height: 150, // Increased height to prevent overflow
+      height: 150,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -318,7 +273,6 @@ class _NewsScreenState extends State<NewsScreen> {
 
           return GestureDetector(
             onTap: () {
-              // Navigate to stock detail screen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -332,7 +286,7 @@ class _NewsScreenState extends State<NewsScreen> {
               margin: EdgeInsets.only(
                 right: index < trendingStocks.length - 1 ? 12 : 0,
               ),
-              padding: EdgeInsets.all(12), // Reduced padding
+              padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.getGreyBG(brightness),
                 border: Border.all(
@@ -348,11 +302,10 @@ class _NewsScreenState extends State<NewsScreen> {
                 ],
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.center, // Center everything
-                mainAxisSize: MainAxisSize.min, // Prevent overflow
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Company logo - matching My Stocks/Watchlist style
+                  // Company logo
                   Center(
                     child: Container(
                       width: 40,
@@ -364,8 +317,8 @@ class _NewsScreenState extends State<NewsScreen> {
                       child: Center(child: _getStockIcon(stock['symbol'])),
                     ),
                   ),
-                  const SizedBox(height: 8), // Reduced spacing
-                  // Symbol - centered
+                  const SizedBox(height: 8),
+                  // Symbol
                   Center(
                     child: Text(
                       stock['symbol'],
@@ -376,8 +329,8 @@ class _NewsScreenState extends State<NewsScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 2), // Reduced spacing
-                  // Price - centered
+                  const SizedBox(height: 2),
+                  // Price
                   if (price > 0)
                     Center(
                       child: Text(
@@ -388,8 +341,8 @@ class _NewsScreenState extends State<NewsScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 2), // Reduced spacing
-                  // Change percentage - centered
+                  const SizedBox(height: 2),
+                  // Change percentage
                   Center(
                     child: Text(
                       '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
@@ -409,55 +362,34 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  /// Build news list with company logos
-  Widget _buildNewsList(Brightness brightness) {
-    if (isLoadingNews) {
-      return Container(
-        height: 200,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (stockNews.isEmpty) {
-      return Container(
-        height: 200,
-        child: Center(
-          child: Text(
-            'No news available',
-            style: TextStyle(
-              color: AppColors.getText(brightness).withOpacity(0.6),
-            ),
-          ),
-        ),
-      );
-    }
-
+  /// Build hard-coded news list matching Figma design
+  Widget _buildHardCodedNewsList(Brightness brightness) {
     return ListView.builder(
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
       padding: EdgeInsets.symmetric(horizontal: 16),
-      itemCount: stockNews.length,
+      itemCount: hardCodedNews.length,
       itemBuilder: (context, index) {
-        final newsItem = stockNews[index];
-        return _buildNewsCard(newsItem, brightness);
+        final newsItem = hardCodedNews[index];
+        return _buildHardCodedNewsCard(newsItem, brightness);
       },
     );
   }
 
-  /// Build individual news card with company logo
-  Widget _buildNewsCard(StockNewsItem newsItem, Brightness brightness) {
+  /// Build individual news card matching Figma design
+  Widget _buildHardCodedNewsCard(
+    HardCodedNewsItem newsItem,
+    Brightness brightness,
+  ) {
     return Container(
-      margin: EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.getGreyBG(brightness),
-        border: Border.all(
-          color: AppColors.getText(brightness).withOpacity(0.1),
-        ),
+        color: newsItem.backgroundColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 4,
             offset: Offset(0, 2),
           ),
@@ -465,28 +397,30 @@ class _NewsScreenState extends State<NewsScreen> {
       ),
       child: Row(
         children: [
-          // Company logo (with fallback)
+          // News image/illustration
           Container(
             width: 60,
             height: 60,
-            decoration: BoxDecoration(
-              color: _getStockColor(newsItem.symbol),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-            ),
-            child: newsItem.logoUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      newsItem.logoUrl,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(child: _getStockIcon(newsItem.symbol));
-                      },
+              child: Image.asset(
+                newsItem.imagePath,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[600],
+                    child: Icon(
+                      Icons.article_outlined,
+                      color: Colors.white,
+                      size: 24,
                     ),
-                  )
-                : Center(child: _getStockIcon(newsItem.symbol)),
+                  );
+                },
+              ),
+            ),
           ),
 
           const SizedBox(width: 16),
@@ -496,7 +430,7 @@ class _NewsScreenState extends State<NewsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Source and time
+                // Source, time, and badge row
                 Row(
                   children: [
                     Text(
@@ -504,27 +438,57 @@ class _NewsScreenState extends State<NewsScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.getText(brightness).withOpacity(0.7),
+                        color: AppColors.getText(brightness).withOpacity(0.8),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _getTimeAgo(newsItem.datetime),
+                      '•',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.getText(brightness).withOpacity(0.5),
+                        color: AppColors.getText(brightness).withOpacity(0.6),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    Text(
+                      newsItem.timeAgo,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.getText(brightness).withOpacity(0.6),
+                      ),
+                    ),
+                    const Spacer(),
+                    // Badge if present
+                    if (newsItem.badge != null)
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: newsItem.badge == 'Top Story'
+                              ? Colors.orange
+                              : Colors.blue,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          newsItem.badge!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
 
                 const SizedBox(height: 8),
 
-                // News headline
+                // News title
                 Text(
-                  newsItem.headline,
+                  newsItem.title,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.getText(brightness),
                     height: 1.3,
@@ -532,46 +496,24 @@ class _NewsScreenState extends State<NewsScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-
-                const SizedBox(height: 4),
-
-                // Stock symbol
-                Text(
-                  newsItem.symbol,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _getStockColor(newsItem.symbol),
-                  ),
-                ),
               ],
             ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // Arrow icon
+          Icon(
+            Icons.arrow_forward_ios,
+            color: AppColors.getText(brightness).withOpacity(0.6),
+            size: 16,
           ),
         ],
       ),
     );
   }
 
-  /// Calculate time ago from timestamp
-  String _getTimeAgo(int timestamp) {
-    if (timestamp == 0) return 'Recently';
-
-    final now = DateTime.now();
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    final difference = now.difference(date);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
-  /// Get brand color for different stocks
+  /// Get brand color for different stocks (keeping same)
   Color _getStockColor(String symbol) {
     switch (symbol) {
       case 'TSLA':
@@ -589,7 +531,7 @@ class _NewsScreenState extends State<NewsScreen> {
     }
   }
 
-  /// Get appropriate icon for different stocks
+  /// Get appropriate icon for different stocks (keeping same)
   Widget _getStockIcon(String symbol) {
     switch (symbol) {
       case 'TSLA':

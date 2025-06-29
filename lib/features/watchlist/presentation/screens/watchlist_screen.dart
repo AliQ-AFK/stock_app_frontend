@@ -23,6 +23,10 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
   bool _isLoading = true;
   String _errorMessage = '';
 
+  // Simple delete functionality
+  bool _isDeleteMode = false;
+  Set<String> _selectedForDelete = {};
+
   final SessionManager _sessionManager = SessionManager();
 
   @override
@@ -85,6 +89,46 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
     }
   }
 
+  /// Toggle delete mode
+  void _toggleDeleteMode() {
+    setState(() {
+      _isDeleteMode = !_isDeleteMode;
+      _selectedForDelete.clear();
+    });
+  }
+
+  /// Delete selected stocks
+  void _deleteSelected() {
+    try {
+      for (final symbol in _selectedForDelete) {
+        _sessionManager.removeFromWishlist(symbol);
+      }
+
+      setState(() {
+        _watchlistSymbols.removeWhere((s) => _selectedForDelete.contains(s));
+        for (final symbol in _selectedForDelete) {
+          _stockData.remove(symbol);
+        }
+        _selectedForDelete.clear();
+        _isDeleteMode = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Removed stocks from watchlist'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error removing stocks'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   /// Remove stock from watchlist
   void _removeFromWatchlist(String symbol) {
     try {
@@ -143,69 +187,30 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
         ),
         onPressed: () => Navigator.pop(context),
       ),
-      title: Row(
-        children: [
-          Text(
-            'My Watchlist',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              color: AppColors.getText(brightness),
-            ),
-          ),
-          const Spacer(),
-          // Search container - clickable to navigate to search screen
-          GestureDetector(
-            onTap: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => StockSearchScreen()),
-              );
-              // Refresh watchlist if a stock was added
-              if (result == true) {
-                _loadWatchlistData();
-              }
-            },
-            child: Container(
-              width: 155,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                border: Border.all(
-                  color: AppColors.getText(brightness).withOpacity(0.7),
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        'Search...',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.getText(brightness).withOpacity(0.5),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: Icon(
-                      Icons.search,
-                      color: AppColors.getText(brightness).withOpacity(0.5),
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      title: Text(
+        _isDeleteMode ? 'Select to Delete' : 'My Watchlist',
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: AppColors.getText(brightness),
+        ),
       ),
+      actions: _watchlistSymbols.isNotEmpty
+          ? [
+              if (_isDeleteMode && _selectedForDelete.isNotEmpty)
+                IconButton(
+                  onPressed: _deleteSelected,
+                  icon: Icon(Icons.delete, color: Colors.red),
+                ),
+              IconButton(
+                onPressed: _toggleDeleteMode,
+                icon: Icon(
+                  _isDeleteMode ? Icons.close : Icons.edit,
+                  color: AppColors.getText(brightness),
+                ),
+              ),
+            ]
+          : null,
     );
   }
 
@@ -345,98 +350,101 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
     final isPositive = changePercent >= 0;
 
     final companyName = profile?['name'] ?? symbol;
+    final isSelected = _selectedForDelete.contains(symbol);
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                StockDetailScreen(symbol: symbol, companyName: companyName),
-          ),
-        );
+        if (_isDeleteMode) {
+          setState(() {
+            if (isSelected) {
+              _selectedForDelete.remove(symbol);
+            } else {
+              _selectedForDelete.add(symbol);
+            }
+          });
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  StockDetailScreen(symbol: symbol, companyName: companyName),
+            ),
+          );
+        }
       },
       child: Container(
         width: 140, // Same width as trending stocks
         margin: EdgeInsets.only(left: index == 0 ? 10 : 6, right: 6),
         padding: EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.getGreyBG(brightness),
+          color: _isDeleteMode && isSelected
+              ? Colors.red.withOpacity(0.2)
+              : AppColors.getGreyBG(brightness),
           borderRadius: BorderRadius.circular(12),
+          border: _isDeleteMode && isSelected
+              ? Border.all(color: Colors.red, width: 2)
+              : null,
         ),
-        child: Stack(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Company logo (centered at top)
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _getStockColor(symbol),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(child: _getStockIcon(symbol)),
+            // Checkbox when in delete mode
+            if (_isDeleteMode)
+              Icon(
+                isSelected ? Icons.check_circle : Icons.circle_outlined,
+                color: isSelected
+                    ? Colors.red
+                    : AppColors.getText(brightness).withOpacity(0.5),
+                size: 24,
+              )
+            else
+              // Company logo (centered at top)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _getStockColor(symbol),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 8),
-
-                // Symbol (centered)
-                Text(
-                  symbol,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.getText(brightness),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-
-                // Current price (centered)
-                Text(
-                  currentPrice > 0
-                      ? '\$${currentPrice.toStringAsFixed(2)}'
-                      : 'N/A',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.getText(brightness),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-
-                // Percentage change (centered)
-                Text(
-                  '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isPositive
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-
-            // Star icon for remove (top right corner)
-            Positioned(
-              top: 4,
-              right: 4,
-              child: GestureDetector(
-                onTap: () => _removeFromWatchlist(symbol),
-                child: Container(
-                  padding: EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.star, color: Colors.amber, size: 16),
-                ),
+                child: Center(child: _getStockIcon(symbol)),
               ),
+            const SizedBox(height: 8),
+
+            // Symbol (centered)
+            Text(
+              symbol,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.getText(brightness),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+
+            // Current price (centered)
+            Text(
+              currentPrice > 0 ? '\$${currentPrice.toStringAsFixed(2)}' : 'N/A',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.getText(brightness),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+
+            // Percentage change (centered)
+            Text(
+              '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isPositive
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFFDC2626),
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
