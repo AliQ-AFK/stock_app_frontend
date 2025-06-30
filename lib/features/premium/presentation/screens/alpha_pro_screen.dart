@@ -379,7 +379,7 @@ class _AlphaProstate extends State<AlphaPro> {
                     Text(
                       'for better experience with AlphaWave',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w400,
                         color: AppColors.getText(brightness),
                       ),

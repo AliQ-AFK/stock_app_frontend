@@ -250,7 +250,7 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.star_outline,
+            Icons.remove_red_eye_outlined,
             size: 64,
             color: AppColors.getText(brightness).withOpacity(0.3),
           ),
